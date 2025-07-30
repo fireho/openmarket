@@ -1,0 +1,49 @@
+<% content_for :title, "Drinks" %>
+<div class="w-full">
+  <div class="flex justify-between items-center">
+    <h1 class="font-bold text-4xl">
+      <%= icon("drinks", size: 42) %>
+      <%= t(".title") %>
+    </h1>
+    <%= btn_new new_drink_path, "Nova bebida", data: { turbo_frame: "modal" } %>
+  </div>
+  <%= form_with url: drinks_path, method: :get, class: "mb-4" do |form| %>
+  <div class="flex">
+    <%= form.text_field :search, value: params[:search], class: "w-full rounded-md border-yellow-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" %>
+    <%= form.submit "Procurar", class: "ml-2 px-4 py-2 bg-gray-600 text-white rounded-md" %>
+  </div>
+  <% end %>
+  <div id="drinks" class="min-w-full divide-y divide-gray-200 space-y-5">
+    <% if @drinks.any? %>
+    <% @drinks.each do |drink| %>
+    <div class="flex flex-col sm:flex-row justify-between items-center pb-5 sm:pb-0">
+      <div id="<%= dom_id drink %>" class="w-full sm:w-auto my-5">
+        <div class="flex flex-wrap items-baseline justify-between gap-y-2">
+          <div>
+            <h2 class="font-bold text-2xl">
+              <%= link_to drink.name, drink %>
+            </h2>
+            <small class="text-gray-500"><%= drink.kind_name %> <%= drink.brand %></small>
+          </div>
+          <div class="flex items-baseline gap-x-4">
+            <span><%= drink.pack_name %> <%= drink.size %>ml</span>
+            <span><%= drink.acl %>%</span>
+          </div>
+        </div>
+      </div>
+      <div class="w-full sm:w-auto flex flex-col sm:flex-row space-x-2 space-y-2">
+        <%= btn_edit edit_drink_path(drink) %>
+      </div>
+    </div>
+    <% end %>
+    <% else %>
+    <p class="text-center my-10">Sem bebidas encontradas...</p>
+    <% end %>
+  </div>
+  <div class="mt-4">
+    <%== pagy_nav(@pagy) %>
+  </div>
+  <div class="mt-4">
+    <p class="text-gray-500 text-sm">Total de bebidas: <%= Drink.count %></p>
+  </div>
+</div>

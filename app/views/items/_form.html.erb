@@ -1,0 +1,42 @@
+<%= form_with(model: drink, class: "contents") do |form| %>
+  <%= render "shared/errors", object: drink %>
+  <fieldset class="fieldset">
+    <%= form.legend %>
+    <div class="form-control">
+      <%= form.label(:name) %>
+      <%= form.text(:name) %>
+    </div>
+    <div class="form-control">
+      <%= form.label(:code) %>
+      <%= form.text(:code) %>
+    </div>
+    <div class="form-control">
+      <%= form.label(:kind) %>
+      <%= form.pick(:kind, Drink.kinds_select) %>
+    </div>
+    <div class="flex space-x-4 my-5">
+      <div class="form-control w-1/2">
+        <%= form.label(:pack) %>
+        <%= form.pick(:pack, Drink.packs_select) %>
+      </div>
+      <div class="flex space-x-4 w-1/2">
+        <div class="form-control w-1/2">
+          <%= form.label(:size) %>
+          <%= form.number(:size) %>
+        </div>
+        <div class="form-control w-1/2">
+          <%= form.label(:acl) %>
+          <%= form.number(:acl) %>
+        </div>
+      </div>
+    </div>
+    <div class="form-control">
+      <%= form.label(:brand) %>
+      <%= form.text(:brand) %>
+    </div>
+  </fieldset>
+  <div class="inline"><%= form.save %></div>
+<% end %>
+<% if !drink.new_record? %>
+  <%= btn_destroy drink %>
+<% end %>
