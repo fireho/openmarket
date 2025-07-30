@@ -1,6 +1,6 @@
 # Openmarket
 
-Simple Item generic db using mongoid
+Simple Product generic db using mongoid
 Name/Code/Brand and Image (remote or local bin on db)
 
 Food & Drink extra fields

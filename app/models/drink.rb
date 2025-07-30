@@ -1,7 +1,7 @@
 #
 # What to drink... 🍺 🍷 🍸 🍹 🥃
 #
-class Drink < Item
+class Drink < Product
 
   enumere :kinds, default: :beer
   kind :beer, acl: 5

@@ -1,6 +1,6 @@
 <turbo-frame id="modal">
   <dialog open id="close_modal" class="popup">
-    <% content_for :title, "Novo item" %>
+    <% content_for :title, "Novo product" %>
     <div class="w-full">
       <h1 class="font-bold text-4xl">
         <% if params[:type] == 'Drink' %>
@@ -8,7 +8,7 @@
         <% elsif params[:type] == 'Food' %>
           Nova Comida
         <% else %>
-          Novo Item
+          Novo Product
         <% end %>
       </h1>
       <%= render "form" %>

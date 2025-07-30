@@ -5,7 +5,7 @@ class Brand
   field :name, type: String
   field :info, type: String
 
-  has_many :items
+  has_many :products
 
   validates :name, presence: true, uniqueness: true
   validates :info, presence: true

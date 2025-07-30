@@ -1,0 +1,67 @@
+<% content_for :title, "Products" %>
+<div class="w-full">
+  <div class="flex justify-between products-center">
+    <h1 class="font-bold text-4xl">
+      <%= icon("products", size: 42) %>
+      Itens
+    </h1>
+    <div class="flex space-x-2">
+      <%= link_to "Nova Bebida", new_product_path(type: 'Drink'), class: "btn btn-primary", data: { turbo_frame: "modal" } %>
+      <%= link_to "Nova Comida", new_product_path(type: 'Food'), class: "btn btn-secondary", data: { turbo_frame: "modal" } %>
+    </div>
+  </div>
+  <%= form_with url: products_path, method: :get, class: "mb-4" do |form| %>
+    <div class="flex">
+      <%= form.text_field :search, value: params[:search], class: "w-full rounded-md border-yellow-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" %>
+      <%= form.submit "Procurar", class: "ml-2 px-4 py-2 bg-gray-600 text-white rounded-md" %>
+    </div>
+  <% end %>
+  <div id="products" class="min-w-full divide-y divide-gray-200 space-y-5">
+    <% if @products.any? %>
+      <% @products.each do |product| %>
+        <div class="flex flex-col sm:flex-row justify-between products-center pb-5 sm:pb-0">
+          <div id="<%= dom_id product %>" class="w-full sm:w-auto my-5">
+            <div class="flex flex-wrap products-baseline justify-between gap-y-2">
+              <div>
+                <h2 class="font-bold text-2xl">
+                  <%= link_to product.name, product %>
+                  <span class="text-sm bg-gray-200 rounded px-2 py-1 ml-2"><%= product.type_name %></span>
+                </h2>
+                <small class="text-gray-500">
+                  <%= product.kind_name if product.respond_to?(:kind_name) %>
+                  <%= product.brand.name if product.brand %>
+                </small>
+              </div>
+              <div class="flex products-baseline gap-x-4">
+                <% if product.respond_to?(:pack_name) %>
+                  <span><%= product.pack_name %></span>
+                <% end %>
+                <% if product.drink? %>
+                  <span><%= product.size %>ml</span>
+                  <span><%= product.acl %>%</span>
+                <% elsif product.food? %>
+                  <span><%= product.size %>g</span>
+                <% end %>
+              </div>
+            </div>
+          </div>
+          <div class="w-full sm:w-auto flex flex-col sm:flex-row space-x-2 space-y-2">
+            <%= link_to "Editar", edit_product_path(product), class: "btn btn-outline" %>
+          </div>
+        </div>
+      <% end %>
+    <% else %>
+      <p class="text-center my-10">Nenhum product encontrado...</p>
+    <% end %>
+  </div>
+  <div class="mt-4">
+    <%== pagy_nav(@pagy) if defined?(pagy_nav) %>
+  </div>
+  <div class="mt-4">
+    <p class="text-gray-500 text-sm">
+      Total de itens: <%= Product.count %>
+      (Bebidas: <%= Drink.count %>,
+      Comidas: <%= Food.count %>)
+    </p>
+  </div>
+</div>

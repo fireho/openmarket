@@ -10,9 +10,9 @@ require "rails_helper"
 #
 # It only uses APIs available in rails and/or rspec-rails APIs to keep things simple and stable.
 
-RSpec.describe "/items", type: :request do
+RSpec.describe "/products", type: :request do
   # This should return the minimal set of attributes required to create a valid
-  # Item. As you add validations to Item, be sure to
+  # Product. As you add validations to Product, be sure to
   # adjust the attributes here as well.
   let(:valid_drink_attributes) {
     Fabricate.build(:drink).attributes
@@ -28,47 +28,47 @@ RSpec.describe "/items", type: :request do
 
   describe "GET /index" do
     it "renders a successful response" do
-      Item.create! valid_drink_attributes
-      get items_url
+      Product.create! valid_drink_attributes
+      get products_url
       expect(response).to be_successful
     end
   end
 
   describe "GET /show" do
     it "renders a successful response for a drink" do
-      item = Item.create! valid_drink_attributes
-      get item_url(item)
+      product = Product.create! valid_drink_attributes
+      get product_url(product)
       expect(response).to be_successful
     end
 
     it "renders a successful response for food" do
-      item = Item.create! valid_food_attributes
-      get item_url(item)
+      product = Product.create! valid_food_attributes
+      get product_url(product)
       expect(response).to be_successful
     end
   end
 
   describe "GET /new" do
     it "renders a successful response" do
-      get new_item_url
+      get new_product_url
       expect(response).to be_successful
     end
 
     it "renders a successful response with type=Drink" do
-      get new_item_url(type: 'Drink')
+      get new_product_url(type: 'Drink')
       expect(response).to be_successful
     end
 
     it "renders a successful response with type=Food" do
-      get new_item_url(type: 'Food')
+      get new_product_url(type: 'Food')
       expect(response).to be_successful
     end
   end
 
   describe "GET /edit" do
     it "renders a successful response" do
-      item = Item.create! valid_drink_attributes
-      get edit_item_url(item)
+      product = Product.create! valid_drink_attributes
+      get edit_product_url(product)
       expect(response).to be_successful
     end
   end
@@ -77,40 +77,40 @@ RSpec.describe "/items", type: :request do
     context "with valid drink parameters" do
       it "creates a new Drink" do
         expect {
-          post items_url, params: { item: valid_drink_attributes }
-        }.to change(Item, :count).by(1)
-        expect(Item.last.class).to eq(Drink)
+          post products_url, params: { product: valid_drink_attributes }
+        }.to change(Product, :count).by(1)
+        expect(Product.last.class).to eq(Drink)
       end
 
-      it "redirects to the created item" do
-        post items_url, params: { item: valid_drink_attributes }
-        expect(response).to redirect_to(item_url(Item.last))
+      it "redirects to the created product" do
+        post products_url, params: { product: valid_drink_attributes }
+        expect(response).to redirect_to(product_url(Product.last))
       end
     end
 
     context "with valid food parameters" do
       it "creates a new Food" do
         expect {
-          post items_url, params: { item: valid_food_attributes }
-        }.to change(Item, :count).by(1)
-        expect(Item.last._type).to eq('Food')
+          post products_url, params: { product: valid_food_attributes }
+        }.to change(Product, :count).by(1)
+        expect(Product.last._type).to eq('Food')
       end
 
-      it "redirects to the created item" do
-        post items_url, params: { item: valid_food_attributes }
-        expect(response).to redirect_to(item_url(Item.last))
+      it "redirects to the created product" do
+        post products_url, params: { product: valid_food_attributes }
+        expect(response).to redirect_to(product_url(Product.last))
       end
     end
 
     context "with invalid parameters" do
-      it "does not create a new Item" do
+      it "does not create a new Product" do
         expect {
-          post items_url, params: { item: invalid_attributes }
-        }.to change(Item, :count).by(0)
+          post products_url, params: { product: invalid_attributes }
+        }.to change(Product, :count).by(0)
       end
 
       it "renders a response with 422 status (i.e. to display the 'new' template)" do
-        post items_url, params: { item: invalid_attributes }
+        post products_url, params: { product: invalid_attributes }
         expect(response).to have_http_status(:unprocessable_entity)
       end
     end
@@ -119,45 +119,45 @@ RSpec.describe "/items", type: :request do
   describe "PATCH /update" do
     context "with valid parameters" do
       let(:new_attributes) {
-        { name: "New Item Name" }
+        { name: "New Product Name" }
       }
 
-      it "updates the requested item" do
-        item = Item.create! valid_drink_attributes
-        patch item_url(item), params: { item: new_attributes }
-        item.reload
-        expect(item.name).to eq("New Item Name")
+      it "updates the requested product" do
+        product = Product.create! valid_drink_attributes
+        patch product_url(product), params: { product: new_attributes }
+        product.reload
+        expect(product.name).to eq("New Product Name")
       end
 
-      it "redirects to the item" do
-        item = Item.create! valid_drink_attributes
-        patch item_url(item), params: { item: new_attributes }
-        item.reload
-        expect(response).to redirect_to(item_url(item))
+      it "redirects to the product" do
+        product = Product.create! valid_drink_attributes
+        patch product_url(product), params: { product: new_attributes }
+        product.reload
+        expect(response).to redirect_to(product_url(product))
       end
     end
 
     context "with invalid parameters" do
       it "renders a response with 422 status (i.e. to display the 'edit' template)" do
-        item = Item.create! valid_drink_attributes
-        patch item_url(item), params: { item: invalid_attributes }
+        product = Product.create! valid_drink_attributes
+        patch product_url(product), params: { product: invalid_attributes }
         expect(response).to have_http_status(:unprocessable_entity)
       end
     end
   end
 
   describe "DELETE /destroy" do
-    it "destroys the requested item" do
-      item = Item.create! valid_drink_attributes
+    it "destroys the requested product" do
+      product = Product.create! valid_drink_attributes
       expect {
-        delete item_url(item)
-      }.to change(Item, :count).by(-1)
+        delete product_url(product)
+      }.to change(Product, :count).by(-1)
     end
 
-    it "redirects to the items list" do
-      item = Item.create! valid_drink_attributes
-      delete item_url(item)
-      expect(response).to redirect_to(items_url)
+    it "redirects to the products list" do
+      product = Product.create! valid_drink_attributes
+      delete product_url(product)
+      expect(response).to redirect_to(products_url)
     end
   end
 end

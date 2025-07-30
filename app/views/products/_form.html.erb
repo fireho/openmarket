@@ -1,5 +1,5 @@
-<%= form_with(model: @item, class: "contents") do |form| %>
-  <%= render "shared/errors", object: @item %>
+<%= form_with(model: @product, class: "contents") do |form| %>
+  <%= render "shared/errors", object: @product %>
   <fieldset class="fieldset">
     <%= form.legend %>
     <!-- Type Selection -->
@@ -24,12 +24,12 @@
     <div id="drink-fields" class="type-specific-fields" style="display: none;">
       <div class="form-control">
         <%= form.label(:kind, "Tipo de Bebida") %>
-        <%= form.select(:kind, options_for_select(Drink.kinds_select, @item.kind), { include_blank: "Selecione..." }, { class: "form-select" }) %>
+        <%= form.select(:kind, options_for_select(Drink.kinds_select, @product.kind), { include_blank: "Selecione..." }, { class: "form-select" }) %>
       </div>
       <div class="flex space-x-4 my-5">
         <div class="form-control w-1/2">
           <%= form.label(:pack, "Embalagem") %>
-          <%= form.select(:pack, options_for_select(Drink.packs_select, @item.pack), { include_blank: "Selecione..." }, { class: "form-select" }) %>
+          <%= form.select(:pack, options_for_select(Drink.packs_select, @product.pack), { include_blank: "Selecione..." }, { class: "form-select" }) %>
         </div>
         <div class="flex space-x-4 w-1/2">
           <div class="form-control w-1/2">
@@ -46,12 +46,12 @@
     <div id="food-fields" class="type-specific-fields" style="display: none;">
       <div class="form-control">
         <%= form.label(:kind, "Tipo de Comida") %>
-        <%= form.select(:kind, options_for_select(Food.kinds_select, @item.kind), { include_blank: "Selecione..." }, { class: "form-select" }) %>
+        <%= form.select(:kind, options_for_select(Food.kinds_select, @product.kind), { include_blank: "Selecione..." }, { class: "form-select" }) %>
       </div>
       <div class="flex space-x-4 my-5">
         <div class="form-control w-1/2">
           <%= form.label(:pack, "Embalagem") %>
-          <%= form.select(:pack, options_for_select(Food.packs_select, @item.pack), { include_blank: "Selecione..." }, { class: "form-select" }) %>
+          <%= form.select(:pack, options_for_select(Food.packs_select, @product.pack), { include_blank: "Selecione..." }, { class: "form-select" }) %>
         </div>
         <div class="form-control w-1/2">
           <%= form.label(:size, "Tamanho (g)") %>
@@ -66,8 +66,8 @@
   </fieldset>
   <div class="inline"><%= form.submit "Salvar", class: "btn btn-primary" %></div>
 <% end %>
-<% if !@item.new_record? %>
-  <%= link_to "Excluir", @item, method: :delete, class: "btn btn-danger", confirm: "Tem certeza?" %>
+<% if !@product.new_record? %>
+  <%= link_to "Excluir", @product, method: :delete, class: "btn btn-danger", confirm: "Tem certeza?" %>
 <% end %>
 <script>
   function toggleTypeFields() {

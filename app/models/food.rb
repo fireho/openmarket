@@ -1,4 +1,4 @@
-class Food < Item
+class Food < Product
 
   enumere :kinds, default: :fast
   kind :fast, acl: 0
@@ -9,8 +9,6 @@ class Food < Item
   kind :dessert, acl: 0
   kind :snack, acl: 0
   kind :meat, acl: 0
-
-
 
   field :size,  type: Integer # in grams
 

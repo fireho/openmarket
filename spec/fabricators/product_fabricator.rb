@@ -1,4 +1,4 @@
-Fabricator(:item) do
+Fabricator(:product) do
   name { Faker::Commerce.product_name }
   code { Faker::Barcode.ean(13) }
   brand { Faker::Company.name }

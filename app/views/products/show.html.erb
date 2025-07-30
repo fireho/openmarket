@@ -1,0 +1,66 @@
+<% content_for :title, "Visualizando product" %>
+<div class="w-full">
+  <h1 class="font-bold text-4xl">
+    <% if @product.drink? %>
+      <%= icon("drinks", size: 42) %>
+    <% elsif @product.food? %>
+      <%= icon("food", size: 42) %>
+    <% else %>
+      <%= icon("products", size: 42) %>
+    <% end %>
+    <%= @product.name %>
+    <span class="text-lg bg-gray-200 rounded px-3 py-1 ml-3"><%= @product.type_name %></span>
+  </h1>
+  <div class="flex space-x-2 my-4">
+    <%= link_to "Nova Bebida", new_product_path(type: 'Drink'), class: "btn btn-primary" %>
+    <%= link_to "Nova Comida", new_product_path(type: 'Food'), class: "btn btn-secondary" %>
+    <%= link_to "Editar", edit_product_path(@product), class: "btn btn-outline" %>
+  </div>
+  <div id="<%= dom_id @product %>" class="w-full sm:w-auto my-5 space-y-5">
+    <div>
+      <strong class="block font-medium mb-1">Nome:</strong>
+      <%= @product.name %>
+    </div>
+    <% if @product.code.present? %>
+      <div>
+        <strong class="block font-medium mb-1">Código:</strong>
+        <%= @product.code %>
+      </div>
+    <% end %>
+    <div>
+      <strong class="block font-medium mb-1">Marca:</strong>
+      <%= @product.brand&.name || 'Não informada' %>
+    </div>
+    <% if @product.respond_to?(:kind_name) %>
+      <div>
+        <strong class="block font-medium mb-1">Tipo:</strong>
+        <%= @product.kind_name %>
+      </div>
+    <% end %>
+    <% if @product.respond_to?(:pack_name) %>
+      <div>
+        <strong class="block font-medium mb-1">Embalagem:</strong>
+        <%= @product.pack_name %>
+      </div>
+    <% end %>
+    <% if @product.drink? %>
+      <div class="flex space-x-4">
+        <div class="w-1/2">
+          <strong class="block font-medium mb-1">Tamanho:</strong>
+          <%= @product.size %>ml
+        </div>
+        <div class="w-1/2">
+          <strong class="block font-medium mb-1">Álcool:</strong>
+          <%= @product.acl %>%
+        </div>
+      </div>
+    <% elsif @product.food? && @product.size %>
+      <div>
+        <strong class="block font-medium mb-1">Tamanho:</strong>
+        <%= @product.size %>g
+      </div>
+    <% end %>
+  </div>
+  <%= link_to "Voltar", products_path, class: "btn btn-secondary" %>
+  <%= link_to "Excluir", @product, method: :delete, class: "btn btn-danger", confirm: "Tem certeza?" %>
+</div>

@@ -1,0 +1,47 @@
+pt:
+  drinks:
+    index:
+      title: Bebidas
+    new:
+      title: Nova Bebida
+    edit:
+      title: Editando Bebida
+  mongoid:
+    models:
+      drink:
+        one: Bebida
+        other: Bebidas
+    attributes:
+      drink:
+        name: Nome
+        cash: Preço
+        size: Tamanho (ml) # e.g., "BRL"
+        code: Código EAN # e.g., "12345"
+        brand: Marca
+        vol: Volume (% acl) # e.g., "350ml", "500ml"
+        unit: Unidade # e.g., "unidade", "lata", "garrafa"
+        pack: Embalagem
+        pack_enums: # Changed from packs to pack_enums
+          can: Lata # Changed alu to aluminum
+          glass: Vidro # Changed gla to glass
+          plastic: Plástico # Changed pla to plastic
+        kind: Tipo # e.g., "Cerveja", "Refrigerante"
+        kind_enums: # Changed from kinds to kind_enums
+          gin: Gin
+          gin_info: "Um clássico refrescante"
+          vodka: Vodka
+          rum: Rum
+          wine: Vinho
+          wine_info: "Perfeito para acompanhar massas"
+          whisky: Uísque # Changed whiskey to whisky
+          beer: Cerveja
+          beer_info: "Gelada estalando!"
+          soda: Refrigerante
+          water: Água
+          juice: Suco
+          energy: Energético
+          cognac: Conhaque
+          liquor: Licor
+          tequila: Tequila
+        desc: Descrição
+        image: Imagem # URL or path to the drink image
