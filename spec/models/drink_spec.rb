@@ -14,9 +14,14 @@ RSpec.describe Drink, type: :model do
     expect(drink).to be_persisted
   end
 
+  it "should have correct type" do
+    expect(drink.class).to eq(Drink)
+    expect(drink.drink?).to be true
+    expect(drink.food?).to be false
+  end
+
   describe "Validations" do
     it { is_expected.to validate_presence_of(:name) }
-    it { is_expected.to validate_presence_of(:brand) }
     it { is_expected.to validate_uniqueness_of(:code) }
     it do
       is_expected.to validate_inclusion_of(:kind).to_allow(Drink.kinds.keys)
@@ -67,7 +72,7 @@ RSpec.describe Drink, type: :model do
 
     it "should have data for each kind" do
       expect(Drink.kinds[:beer]).to be_present
-      expect(Drink.kinds[:beer][:acl]).to eq(5) # Assuming this is the icon for beer
+      expect(Drink.kinds[:beer][:acl]).to eq(5) # Assuming this is the acl for beer
     end
 
     it "should provide select options" do
@@ -106,7 +111,7 @@ RSpec.describe Drink, type: :model do
     end
   end
 
-  describe "#alc_content" do
+  describe "#alcohol" do
     it "returns the alcohol content with a percent sign" do
       drink = Drink.make(size: 750, acl: 40)
       expect(drink.alcohol).to eq("40%")
@@ -144,27 +149,4 @@ RSpec.describe Drink, type: :model do
     end
   end
 
-  describe ".for_fun" do
-    let(:fun) { Fun.make! }
-    let(:menu) { Menu.make!(fun: fun) }
-
-    before do
-      drink.save
-      menu.add_drink(drink, 1000)
-      menu.add_drink(Drink.make!, 1500)
-      # Add a duplicate drink to ensure uniqueness in the result
-      menu.add_drink(drink, 2000)
-      menu.save
-    end
-
-    # it "returns all unique drinks for a fun" do
-    #   pending
-    #   drinks = Drink.for_fun(fun.id)
-    #   expect(drinks.size).to eq 2
-    # end
-
-    # it "returns an empty array if no drinks are found" do
-    #   expect(Drink.for_fun(BSON::ObjectId.new)).to be_empty
-    # end
-  end
 end

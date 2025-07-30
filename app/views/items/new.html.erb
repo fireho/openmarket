@@ -1,16 +1,34 @@
 <turbo-frame id="modal">
   <dialog open id="close_modal" class="popup">
-
-    <% content_for :title, t(".title") %>
+    <% content_for :title, "Novo item" %>
     <div class="w-full">
-      <h1 class="font-bold text-4xl"><%= t(".title") %></h1>
-      <%= render "form", drink: @drink %>
-      <%= link_to "Cancel", "", data: {
+      <h1 class="font-bold text-4xl">
+        <% if params[:type] == 'Drink' %>
+          Nova Bebida
+        <% elsif params[:type] == 'Food' %>
+          Nova Comida
+        <% else %>
+          Novo Item
+        <% end %>
+      </h1>
+      <%= render "form" %>
+      <%= link_to "Cancelar", "", data: {
         controller: "modal",
         action: "modal#close"
       }, class: "cancel-button" %>
     </div>
-    </div>
-
   </dialog>
+</turbo-frame>"modal">
+<dialog open id="close_modal" class="popup">
+  <% content_for :title, t(".title") %>
+  <div class="w-full">
+    <h1 class="font-bold text-4xl"><%= t(".title") %></h1>
+    <%= render "form", drink: @drink %>
+    <%= link_to "Cancel", "", data: {
+        controller: "modal",
+        action: "modal#close"
+      }, class: "cancel-button" %>
+  </div>
+</div>
+</dialog>
 </turbo-frame>

@@ -1,5 +1,3 @@
-# typed: false
-
 Fabricator(:drink) do
   name { Faker::Beer.name }
   kind { Drink.kinds.keys.sample }

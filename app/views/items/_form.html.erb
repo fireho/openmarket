@@ -1,42 +1,95 @@
-<%= form_with(model: drink, class: "contents") do |form| %>
-  <%= render "shared/errors", object: drink %>
+<%= form_with(model: @item, class: "contents") do |form| %>
+  <%= render "shared/errors", object: @item %>
   <fieldset class="fieldset">
     <%= form.legend %>
+    <!-- Type Selection -->
     <div class="form-control">
-      <%= form.label(:name) %>
-      <%= form.text(:name) %>
-    </div>
-    <div class="form-control">
-      <%= form.label(:code) %>
-      <%= form.text(:code) %>
-    </div>
-    <div class="form-control">
-      <%= form.label(:kind) %>
-      <%= form.pick(:kind, Drink.kinds_select) %>
-    </div>
-    <div class="flex space-x-4 my-5">
-      <div class="form-control w-1/2">
-        <%= form.label(:pack) %>
-        <%= form.pick(:pack, Drink.packs_select) %>
-      </div>
-      <div class="flex space-x-4 w-1/2">
-        <div class="form-control w-1/2">
-          <%= form.label(:size) %>
-          <%= form.number(:size) %>
-        </div>
-        <div class="form-control w-1/2">
-          <%= form.label(:acl) %>
-          <%= form.number(:acl) %>
-        </div>
+      <%= form.label(:type, "Tipo") %>
+      <div class="flex space-x-4 mt-2">
+        <%= form.radio_button :type, "Drink", { class: "type-radio", id: "type_drink", onchange: "toggleTypeFields()" } %>
+        <%= form.label :type_drink, "Bebida", { class: "ml-2 mr-4" } %>
+        <%= form.radio_button :type, "Food", { class: "type-radio", id: "type_food", onchange: "toggleTypeFields()" } %>
+        <%= form.label :type_food, "Comida", { class: "ml-2" } %>
       </div>
     </div>
     <div class="form-control">
-      <%= form.label(:brand) %>
-      <%= form.text(:brand) %>
+      <%= form.label(:name, "Nome") %>
+      <%= form.text_field(:name) %>
+    </div>
+    <div class="form-control">
+      <%= form.label(:code, "Código") %>
+      <%= form.text_field(:code) %>
+    </div>
+    <!-- Dynamic fields based on type -->
+    <div id="drink-fields" class="type-specific-fields" style="display: none;">
+      <div class="form-control">
+        <%= form.label(:kind, "Tipo de Bebida") %>
+        <%= form.select(:kind, options_for_select(Drink.kinds_select, @item.kind), { include_blank: "Selecione..." }, { class: "form-select" }) %>
+      </div>
+      <div class="flex space-x-4 my-5">
+        <div class="form-control w-1/2">
+          <%= form.label(:pack, "Embalagem") %>
+          <%= form.select(:pack, options_for_select(Drink.packs_select, @item.pack), { include_blank: "Selecione..." }, { class: "form-select" }) %>
+        </div>
+        <div class="flex space-x-4 w-1/2">
+          <div class="form-control w-1/2">
+            <%= form.label(:size, "Tamanho (ml)") %>
+            <%= form.number_field(:size) %>
+          </div>
+          <div class="form-control w-1/2">
+            <%= form.label(:acl, "Álcool (%)") %>
+            <%= form.number_field(:acl) %>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="food-fields" class="type-specific-fields" style="display: none;">
+      <div class="form-control">
+        <%= form.label(:kind, "Tipo de Comida") %>
+        <%= form.select(:kind, options_for_select(Food.kinds_select, @item.kind), { include_blank: "Selecione..." }, { class: "form-select" }) %>
+      </div>
+      <div class="flex space-x-4 my-5">
+        <div class="form-control w-1/2">
+          <%= form.label(:pack, "Embalagem") %>
+          <%= form.select(:pack, options_for_select(Food.packs_select, @item.pack), { include_blank: "Selecione..." }, { class: "form-select" }) %>
+        </div>
+        <div class="form-control w-1/2">
+          <%= form.label(:size, "Tamanho (g)") %>
+          <%= form.number_field(:size) %>
+        </div>
+      </div>
+    </div>
+    <div class="form-control">
+      <%= form.label(:brand, "Marca") %>
+      <%= form.text_field(:brand) %>
     </div>
   </fieldset>
-  <div class="inline"><%= form.save %></div>
+  <div class="inline"><%= form.submit "Salvar", class: "btn btn-primary" %></div>
 <% end %>
-<% if !drink.new_record? %>
-  <%= btn_destroy drink %>
+<% if !@item.new_record? %>
+  <%= link_to "Excluir", @item, method: :delete, class: "btn btn-danger", confirm: "Tem certeza?" %>
 <% end %>
+<script>
+  function toggleTypeFields() {
+    const drinkRadio = document.getElementById('type_drink');
+    const foodRadio = document.getElementById('type_food');
+    const drinkFields = document.getElementById('drink-fields');
+    const foodFields = document.getElementById('food-fields');
+
+    if (drinkRadio.checked) {
+      drinkFields.style.display = 'block';
+      foodFields.style.display = 'none';
+    } else if (foodRadio.checked) {
+      drinkFields.style.display = 'none';
+      foodFields.style.display = 'block';
+    } else {
+      drinkFields.style.display = 'none';
+      foodFields.style.display = 'none';
+    }
+  }
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    toggleTypeFields();
+  });
+</script>

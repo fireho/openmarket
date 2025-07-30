@@ -1,2 +1,2 @@
-json.extract! drink, :id, :name, :kind, :brand, :size, :acl, :created_at, :updated_at
-json.url drink_url(drink, format: :json)
+json.extract! item, :id, :name, :kind, :brand, :size, :acl, :created_at, :updated_at
+json.url item_url(item, format: :json)

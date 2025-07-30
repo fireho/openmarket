@@ -1,5 +1,10 @@
-<% content_for :title, t(".edit") %>
+<% content_for :title, "Editando item" %>
 <div class="w-full">
-  <h1 class="font-bold text-4xl"><%= t(".edit") %></h1>
-  <%= render "form", drink: @drink %>
+  <h1 class="font-bold text-4xl">
+    Editando <%= @item.type_name %>: <%= @item.name %>
+  </h1>
+  <%= render "form" %>
+  <div class="mt-4">
+    <%= link_to "Voltar", @item, class: "btn btn-secondary" %>
+  </div>
 </div>

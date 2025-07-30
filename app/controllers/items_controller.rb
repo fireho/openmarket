@@ -1,4 +1,4 @@
-class ItemController < ApplicationController
+class ItemsController < ApplicationController
   before_action :set_item, only: %i[ show edit update destroy ]
 
   # GET /items or /items.json
@@ -12,7 +12,8 @@ class ItemController < ApplicationController
 
   # GET /items/new
   def new
-    @item = Item.new
+    @item = params[:type]&.classify&.constantize&.new || Item.new
+    @item.type = params[:type] if params[:type].in?(['Drink', 'Food'])
   end
 
   # GET /items/1/edit
@@ -21,7 +22,9 @@ class ItemController < ApplicationController
 
   # POST /items or /items.json
   def create
-    @item = Item.new(item_params)
+    item_class = item_params[:type]&.classify&.constantize || Item
+    @item = item_class.new(item_params.except(:type))
+    @item.type = item_params[:type] if item_params[:type].in?(['Drink', 'Food'])
 
     respond_to do |format|
       if @item.save
@@ -37,7 +40,7 @@ class ItemController < ApplicationController
   # PATCH/PUT /items/1 or /items/1.json
   def update
     respond_to do |format|
-      if @item.update(item_params)
+      if @item.update(item_params.except(:type))
         format.html { redirect_to @item, notice: "Item was successfully updated." }
         format.json { render :show, status: :ok, location: @item }
       else
@@ -59,12 +62,12 @@ class ItemController < ApplicationController
 
   private
   # Use callbacks to share common setup or constraints between actions.
-  def set_drink
-    @drink = Drink.find(params.expect(:id))
+  def set_item
+    @item = Item.find(params.expect(:id))
   end
 
   # Only allow a list of trusted parameters through.
-  def drink_params
-    params.expect(drink: [:name, :kind, :code, :pack, :brand, :size, :acl])
+  def item_params
+    params.expect(item: [:type, :name, :kind, :code, :pack, :brand, :size, :acl])
   end
 end
