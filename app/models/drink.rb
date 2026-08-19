@@ -46,8 +46,11 @@ class Drink < Product
     "#{size}ml"
   end
 
+  # "7.6%", "7,6", 7.6, 40 — all land as a rounded integer percent. Stripping
+  # every non-digit used to read 7.6% as 76, a beer three times a whisky.
   def acl=(value)
-    self[:acl] = value.to_s.gsub(/[^0-9]/, "").to_i
+    num = value.to_s.tr(",", ".")[/\d+(?:\.\d+)?/]
+    self[:acl] = num ? num.to_f.round : 0
   end
 
   # For fun let's calculate how much you pay for alcohol

@@ -20,11 +20,18 @@ class Product
 
   # Creates a unique index on the name and brand fields
   index({ code: 1 }, { unique: true, sparse: true })
-  index({ name: 1, brand: 1 })
+  index({ name: 1, brand_id: 1 })
 
+  # One collection (STI), so ask the document, not its class name.
+  def drink? = is_a?(Drink)
+  def food?  = is_a?(Food)
+
+  # Name, barcode, or the brand's name — brand is a relation, so it is a lookup
+  # and then an id, not a regex on this document.
   def self.search(term)
     return all unless term.present?
-    where(name: /#{term}/i).or(brand: /#{term}/i).or(code: /#{term}/i)
+    brands = Brand.where(name: /#{term}/i).pluck(:_id)
+    any_of({ name: /#{term}/i }, { code: /#{term}/i }, { brand_id: { "$in" => brands } })
   end
 
   # Import a line of written data
