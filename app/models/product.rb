@@ -15,12 +15,27 @@ class Product
 
   belongs_to :brand, optional: true
 
+  # Who may put this on a menu. Nothing (`org: nil`) is the shared catalogue —
+  # a Brahma is a Brahma, an admin curates it, everybody selects it. An org on
+  # it makes it that org's own: a recipe ("Caipirinha da Casa"), theirs to
+  # write and nobody else's to see. `Product.for(org)` is both together.
+  belongs_to :org, optional: true
+
   validates :name, presence: true
   validates :code, uniqueness: true, allow_blank: true
+
+  scope :shared, -> { where(org_id: nil) }
+  scope :of,     ->(org) { where(org_id: org) }
+
+  # The catalogue as one org sees it: what everybody has, plus what is theirs.
+  def self.for(org)
+    org ? any_of({ org_id: nil }, { org_id: org.try(:id) || org }) : shared
+  end
 
   # Creates a unique index on the name and brand fields
   index({ code: 1 }, { unique: true, sparse: true })
   index({ name: 1, brand_id: 1 })
+  index({ org_id: 1, name: 1 }) # an org reading its own shelf
 
   # One collection (STI), so ask the document, not its class name.
   def drink? = is_a?(Drink)

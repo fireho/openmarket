@@ -1,0 +1,65 @@
+en:
+  mongoid:
+    models:
+      product:
+        one: Product
+        other: Products
+      drink:
+        one: Drink
+        other: Drinks
+      food:
+        one: Food
+        other: Foods
+      brand:
+        one: Brand
+        other: Brands
+    attributes:
+      product:
+        name: Name
+        info: About
+        code: EAN code
+        sku: SKU
+        brand: Brand
+        org: Org
+        uses: Uses
+      brand:
+        name: Name
+        info: About
+      drink:
+        kind: Kind
+        pack: Pack
+        size: Size (ml)
+        acl: Alcohol (%)
+        kind_enums:
+          beer: Beer
+          water: Water
+          whisky: Whisky
+          gin: Gin
+          rum: Rum
+          cachaca: Cachaça
+          wine: Wine
+          vodka: Vodka
+          cognac: Cognac
+          liquor: Liquor
+          tequila: Tequila
+          soda: Soda
+          juice: Juice
+          energy: Energy drink
+        pack_enums:
+          can: Can
+          grf: Bottle
+          pet: PET
+          kit: Kit
+          mix: Mix
+      food:
+        kind: Kind
+        size: Size (g)
+        kind_enums:
+          fast: Fast food
+          burger: Burger
+          pizza: Pizza
+          pasta: Pasta
+          sushi: Sushi
+          dessert: Dessert
+          snack: Snack
+          meat: Meat

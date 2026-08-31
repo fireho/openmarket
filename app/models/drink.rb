@@ -9,6 +9,7 @@ class Drink < Product
   kind :whisky, acl: 40
   kind :gin, acl: 40
   kind :rum, acl: 40
+  kind :cachaca, acl: 40
   kind :wine, acl: 14
   kind :vodka, acl: 40
   kind :cognac, acl: 40
@@ -33,7 +34,8 @@ class Drink < Product
 
   # Validates that size and alcohol are positive integers
   validates :acl,  numericality: { only_integer: true, greater_than_or_equal_to: 0 }
-  validates :size, numericality: { only_integer: true, greater_than: 0 }
+  # A recipe has no bottle — nil size is fine, zero is not.
+  validates :size, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
 
 
   # Prints alcohol content nice with a percent sign

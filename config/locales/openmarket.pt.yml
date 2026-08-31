@@ -1,47 +1,65 @@
 pt:
-  drinks:
-    index:
-      title: Bebidas
-    new:
-      title: Nova Bebida
-    edit:
-      title: Editando Bebida
   mongoid:
     models:
+      product:
+        one: Produto
+        other: Produtos
       drink:
         one: Bebida
         other: Bebidas
+      food:
+        one: Comida
+        other: Comidas
+      brand:
+        one: Marca
+        other: Marcas
     attributes:
-      drink:
+      product:
         name: Nome
-        cash: Preço
-        size: Tamanho (ml) # e.g., "BRL"
-        code: Código EAN # e.g., "12345"
+        info: Sobre
+        code: Código EAN
+        sku: SKU
         brand: Marca
-        vol: Volume (% acl) # e.g., "350ml", "500ml"
-        unit: Unidade # e.g., "unidade", "lata", "garrafa"
+        org: Organização
+        uses: Usos
+      brand:
+        name: Nome
+        info: Sobre
+      drink:
+        kind: Tipo
         pack: Embalagem
-        pack_enums: # Changed from packs to pack_enums
-          can: Lata # Changed alu to aluminum
-          glass: Vidro # Changed gla to glass
-          plastic: Plástico # Changed pla to plastic
-        kind: Tipo # e.g., "Cerveja", "Refrigerante"
-        kind_enums: # Changed from kinds to kind_enums
-          gin: Gin
-          gin_info: "Um clássico refrescante"
-          vodka: Vodka
-          rum: Rum
-          wine: Vinho
-          wine_info: "Perfeito para acompanhar massas"
-          whisky: Uísque # Changed whiskey to whisky
+        size: Tamanho (ml)
+        acl: Álcool (%)
+        kind_enums:
           beer: Cerveja
-          beer_info: "Gelada estalando!"
-          soda: Refrigerante
           water: Água
-          juice: Suco
-          energy: Energético
+          whisky: Uísque
+          gin: Gin
+          rum: Rum
+          cachaca: Cachaça
+          wine: Vinho
+          vodka: Vodka
           cognac: Conhaque
           liquor: Licor
           tequila: Tequila
-        desc: Descrição
-        image: Imagem # URL or path to the drink image
+          soda: Refrigerante
+          juice: Suco
+          energy: Energético
+        pack_enums:
+          can: Lata
+          grf: Garrafa
+          pet: PET
+          kit: Kit
+          mix: Mix
+      food:
+        kind: Tipo
+        size: Tamanho (g)
+        kind_enums:
+          fast: Rápido
+          burger: Hambúrguer
+          pizza: Pizza
+          pasta: Massa
+          sushi: Sushi
+          dessert: Sobremesa
+          snack: Petisco
+          meat: Carne
