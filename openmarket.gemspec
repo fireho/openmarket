@@ -5,18 +5,16 @@ Gem::Specification.new do |spec|
   spec.version     = Openmarket::VERSION
   spec.authors     = [ "nofxx" ]
   spec.email       = [ "chadart@gmail.com" ]
-  spec.homepage    = "TODO"
-  spec.summary     = "TODO: Summary of Openmarket."
-  spec.description = "TODO: Description of Openmarket."
+  spec.homepage    = "https://github.com/fireho/openmarket"
+  spec.summary     = "What a thing IS: Product, Drink, Food, Brand"
+  spec.description = "Shared catalogue for fire hosts. Price lives on the host."
   spec.license     = "MIT"
 
-  # Prevent pushing this gem to RubyGems.org. To allow pushes either set the "allowed_push_host"
-  # to allow pushing to a single host or delete this section to allow pushing to any host.
-  spec.metadata["allowed_push_host"] = "TODO: Set to 'http://mygemserver.com'"
+  # Rubygems already has an SMS gem named openmarket. Ship over git, never gem push.
+  spec.metadata["allowed_push_host"] = "none"
 
   spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = "TODO: Put your gem's public repo URL here."
-  spec.metadata["changelog_uri"] = "TODO: Put your gem's CHANGELOG.md URL here."
+  spec.metadata["source_code_uri"] = spec.homepage
 
   spec.files = Dir.chdir(File.expand_path(__dir__)) do
     Dir["{app,config,db,lib}/**/*", "MIT-LICENSE", "Rakefile", "README.md"]

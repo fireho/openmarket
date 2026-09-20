@@ -52,11 +52,13 @@ relation: search looks brands up by name and matches `brand_id`.
 
 ## Installation
 
+Rubygems already has an SMS gem named `openmarket`. Ours is git:
+
 ```ruby
-gem "openmarket"
+gem "openmarket", git: "git@github.com:fireho/openmarket.git", branch: "main"
 ```
 
-Needs mongoid and, for the enums, fire's `Enumere`.
+Needs mongoid and, for the enums, fire's `Enumere`. Locally: `bundle config set --local local.openmarket ../../git/openmarket`.
 
 ## Specs
 
