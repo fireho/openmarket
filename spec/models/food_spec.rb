@@ -32,6 +32,15 @@ RSpec.describe Food, type: :model do
         greater_than: 0
       )
     end
+
+    # A form sends "" for an empty field, not nil.
+    it "takes a blank size from the form" do
+      expect(Food.make(size: "")).to be_valid
+    end
+
+    it "still refuses a size that is not a number" do
+      expect(Food.make(size: "prato")).not_to be_valid
+    end
   end
 
   describe "#kind" do

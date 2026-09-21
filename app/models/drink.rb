@@ -35,7 +35,7 @@ class Drink < Product
   # Validates that size and alcohol are positive integers
   validates :acl,  numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   # A recipe has no bottle — nil size is fine, zero is not.
-  validates :size, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
+  validates :size, numericality: { only_integer: true, greater_than: 0 }, allow_blank: true # a form sends "", not nil
 
 
   # Prints alcohol content nice with a percent sign

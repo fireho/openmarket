@@ -41,6 +41,18 @@ RSpec.describe Drink, type: :model do
         greater_than: 0
       )
     end
+
+    # A form sends "" for an empty field, not nil — a recipe has no bottle.
+    it "takes a blank size from the form" do
+      expect(Drink.make(size: "", acl: 5)).to be_valid
+    end
+
+    it "still refuses a size that is not a number" do
+      drink = Drink.make(size: "garrafa", acl: 5)
+
+      expect(drink).not_to be_valid
+      expect(drink.errors[:size]).to be_present
+    end
   end
 
   describe "Indexing" do
