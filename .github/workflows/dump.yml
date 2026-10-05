@@ -1,0 +1,97 @@
+# The open catalogue, rebuilt from Open Food Facts every month and published as
+# a release. `bin/rails openmarket:restore` downloads
+# releases/latest/download/openmarket.ndjson.gz, so the asset keeps that name
+# and only a whole-world build is ever marked latest.
+name: dump
+
+on:
+  schedule:
+    - cron: "41 5 2 * *" # the 2nd of every month, 05:41 UTC
+  workflow_dispatch:
+    inputs:
+      countries:
+        description: "Only drinks sold there, as Open Food Facts tags: en:brazil,en:argentina. Empty for the world."
+        required: false
+        default: ""
+      limit:
+        description: "Stop after this many drinks, for a trial. Empty for all."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dump
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      LANG: C.UTF-8
+      OFF_URL: https://static.openfoodfacts.org/data/openfoodfacts-products.jsonl.gz
+      # Empty on a scheduled run: the whole world.
+      COUNTRIES: ${{ inputs.countries }}
+      LIMIT: ${{ inputs.limit }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # bin/build-dump needs Ruby's standard library only: no bundle to install.
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      # Streamed: their export is ~8GB gzipped and never lands on disk. `shell:
+      # bash` means pipefail, so a broken download fails the build.
+      - name: Build
+        shell: bash
+        run: |
+          args=()
+          if [ -n "$COUNTRIES" ]; then args+=(--countries "$COUNTRIES"); fi
+          if [ -n "$LIMIT" ]; then args+=(--limit "$LIMIT"); fi
+          curl -fsSL "$OFF_URL" | bin/build-dump --off - --wikidata --out openmarket.ndjson.gz "${args[@]}"
+
+      # A trial (countries or limit) is a prerelease, never latest: restore
+      # keeps loading the last whole build.
+      - name: Publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          date=$(date -u +%Y-%m-%d)
+          if [ -n "$COUNTRIES$LIMIT" ]; then
+            tag="data-$date-partial"
+            title="Open catalogue $date (partial)"
+            flags=(--prerelease --latest=false)
+            scope="A partial build (countries: ${COUNTRIES:-all}, limit: ${LIMIT:-none}), not the latest."
+          else
+            tag="data-$date"
+            title="Open catalogue $date"
+            flags=(--latest)
+            scope="Load it with \`bin/rails openmarket:restore\`, or read it with \`zcat openmarket.ndjson.gz | jq\`."
+          fi
+          drinks=$(zcat openmarket.ndjson.gz | grep -c '^{"type":"drink"' || true)
+          brands=$(zcat openmarket.ndjson.gz | grep -c '^{"type":"brand"' || true)
+
+          cat > notes.md <<EOF
+          The open catalogue of drinks, built from Open Food Facts on $date: $drinks drinks, $brands brands.
+
+          $scope
+
+          ## Data and license
+
+          Contains information from [Open Food Facts](https://world.openfoodfacts.org), made available under the
+          [Open Database License (ODbL) 1.0](https://opendatacommons.org/licenses/odbl/1-0/). This database is
+          published under the ODbL too: use it, share it, adapt it, and keep it open and attributed to Open Food Facts.
+
+          Product images are not in the file: \`image\` links to where each picture lives, under its own license.
+          Brand details (Wikidata id, country, site, logo) come from [Wikidata](https://www.wikidata.org).
+          EOF
+
+          if gh release view "$tag" > /dev/null 2>&1; then
+            gh release upload "$tag" openmarket.ndjson.gz --clobber
+            gh release edit "$tag" --title "$title" --notes-file notes.md "${flags[@]}"
+          else
+            gh release create "$tag" openmarket.ndjson.gz --target "$GITHUB_SHA" --title "$title" --notes-file notes.md "${flags[@]}"
+          fi

@@ -1,0 +1,77 @@
+#!/usr/bin/env ruby
+# The open catalogue's dump, made straight from Open Food Facts — no Rails, no
+# Mongo, no bundle: Ruby's standard library only. The monthly GitHub Action
+# streams their export through it, so the ~8GB file never lands on disk:
+#
+#   curl -fsSL https://static.openfoodfacts.org/data/openfoodfacts-products.jsonl.gz \
+#     | bin/build-dump --off - --wikidata --out openmarket.ndjson.gz
+#
+# What it writes is what `bin/rails openmarket:restore` loads. Stats go to stderr.
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "fileutils"
+require "optparse"
+require "uri"
+require "openmarket/builder"
+require "openmarket/download"
+require "openmarket/open_food_facts"
+
+options = { off: Openmarket::OpenFoodFacts::DUMP_URL, out: "openmarket.ndjson.gz" }
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: bin/build-dump [options]"
+  opts.on("--off SOURCE", "Open Food Facts jsonl(.gz): a path, a URL, or - for gzip on stdin",
+          "(default: their whole export, several GB, downloaded to tmp/downloads/)") { |off| options[:off] = off }
+  opts.on("--countries LIST", Array, "Only drinks sold there: en:brazil,en:argentina") do |list|
+    options[:countries] = list.map(&:strip).reject(&:empty?)
+  end
+  opts.on("--limit N", Integer, "Stop after N drinks") { |limit| options[:limit] = limit }
+  opts.on("--wikidata", "Fill in brands from Wikidata (skipped, with a warning, if that fails)") { options[:wikidata] = true }
+  opts.on("--out PATH", "Where the dump goes (default: openmarket.ndjson.gz)") { |out| options[:out] = out }
+end
+begin
+  parser.parse!
+rescue OptionParser::ParseError => e
+  abort "#{e.message}\n#{parser}"
+end
+countries = options[:countries] unless options[:countries].to_a.empty?
+
+# A URL is saved to disk first, as the rake task does; stdin is how to skip that.
+source =
+  case options[:off]
+  when "-" then Zlib::GzipReader.new($stdin.binmode, external_encoding: Encoding::UTF_8)
+  when %r{\Ahttps?://}
+    dest = File.join("tmp/downloads", File.basename(URI(options[:off]).path))
+    FileUtils.mkdir_p(File.dirname(dest))
+    warn "Downloading #{options[:off]} -> #{dest}"
+    Openmarket::Download.fetch(options[:off], dest)
+  else options[:off]
+  end
+
+builder = Openmarket::Builder.new
+read = 0
+Openmarket::OpenFoodFacts.each(source, countries: countries, limit: options[:limit]) do |entry|
+  builder.add(entry)
+  read += 1
+  warn "#{read} drinks read" if (read % 50_000).zero?
+end
+
+# A brand Wikidata could not tell us about is still a brand: a fetch that fails
+# costs the enrichment, never the dump.
+if options[:wikidata]
+  begin
+    require "openmarket/wikidata" unless defined?(Openmarket::Wikidata) # a spec brings its own
+    builder.enrich(Openmarket::Wikidata.fetch(builder.brand_names))
+  rescue LoadError, StandardError => e
+    warn "Wikidata skipped: #{e.class}: #{e.message}"
+  end
+end
+
+# No drinks means a broken download or a changed format, never an empty world:
+# fail, so nobody publishes it.
+stats = builder.stats
+abort "No drinks in #{options[:off]}: nothing written" if stats[:products].zero?
+
+FileUtils.mkdir_p(File.dirname(options[:out]))
+count = builder.write(options[:out])
+warn "Wrote #{count} records to #{options[:out]}"
+warn stats.map { |key, n| "#{key} #{n}" }.join(", ")
