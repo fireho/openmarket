@@ -66,22 +66,40 @@ module Openmarket
     end
 
     def brand_attrs(record)
-      %w[ info wikidata country site logo source ].to_h { |key| [ key.to_sym, record[key] ] }
+      %w[ info wikidata country site logo source ].to_h { |key| [ key.to_sym, text(record[key]) ] }
     end
 
-    # A dump record as an importer entry. Only known fields cross over: a dump
-    # from the internet does not get to set whatever it likes on a document.
+    # A dump record as an importer entry. Only known fields cross over, and only
+    # in their own shape: a dump from the internet does not get to set whatever
+    # it likes on a document, and a wrong value makes a row invalid, not a crash.
     def entry(record)
       type = TYPES.fetch(record["type"], "Product")
       attrs = {
-        code: record["code"], name_translations: record["name"], info_translations: record["info"],
-        image: record["image"], quantity: record["quantity"], source: record["source"],
-        countries: record["countries"] || [], tags: record["tags"] || []
+        code: text(record["code"]), name_translations: translations(record["name"]),
+        info_translations: translations(record["info"]), image: text(record["image"]),
+        quantity: text(record["quantity"]), source: text(record["source"]),
+        countries: texts(record["countries"]), tags: texts(record["tags"])
       }
-      attrs.merge!(kind: record["kind"], pack: record["pack"], size: record["size"], acl: record["acl"]) if type == "Drink"
-      attrs.merge!(kind: record["kind"], size: record["size"]) if type == "Food"
+      if type == "Drink"
+        attrs.merge!(kind: text(record["kind"]), pack: text(record["pack"]), size: count(record["size"]), acl: amount(record["acl"]))
+      elsif type == "Food"
+        attrs.merge!(kind: text(record["kind"]), size: count(record["size"]))
+      end
 
-      { code: record["code"], brand: record["brand"], type: type, attrs: attrs }
+      { code: text(record["code"]), brand: text(record["brand"]), type: type, attrs: attrs }
+    end
+
+    def text(value) = (value if value.is_a?(String) && !value.strip.empty?)
+    def texts(value) = value.is_a?(Array) ? value.select { |item| text(item) } : []
+    def count(value) = (value if value.is_a?(Integer))
+    def amount(value) = (value.to_f if value.is_a?(Numeric) && value.to_f.finite?)
+
+    # { "pt" => "Cerveja" } — anything else is no name at all.
+    def translations(value)
+      return unless value.is_a?(Hash)
+
+      found = value.select { |locale, name| locale.is_a?(String) && text(name) }
+      found unless found.empty?
     end
   end
 end

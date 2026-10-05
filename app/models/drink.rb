@@ -19,6 +19,8 @@ class Drink < Product
   kind :soda, acl: 0
   kind :juice, acl: 0
   kind :energy, acl: 0
+  kind :mixed, acl: 5 # ready-to-drink: alcopops, hard seltzers, premixed cocktails
+  kind :tea, acl: 0   # iced tea, ready to drink
 
   enumere :packs, default: :can
   pack :can, icon: "󰑌"

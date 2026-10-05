@@ -48,11 +48,17 @@ drink.kind_name             # => "Cerveja" (i18n, mongoid.attributes.drink.kind_
 ## Search
 
 ```ruby
-Product.search("brahma")    # name, code, or the brand's name
+Product.search("antar orig")   # => Cerveja Antártica Original
 ```
 
-Name is localized, so mongoid queries the current locale. Brand is a
-relation: search looks brands up by name and matches `brand_id`.
+What someone typing wants: every word the start of a word in the product's
+names (any language) or its brand's, with accents and case folded away — or
+the start of a code, or the start of a brand's name. Each product keeps those
+folded words in `tokens` (refreshed on save), so every clause is a prefix on
+an index and stays fast on a big catalogue. The term is text, never a regexp.
+
+A product's `name` falls back to any language it has: a row imported as
+`{ "es" => "Cerveza Quilmes" }` still reads "Cerveza Quilmes" in pt.
 
 ## Lookup
 
@@ -60,10 +66,14 @@ relation: search looks brands up by name and matches `brand_id`.
 Product.lookup("7 891991 010023")   # => the product, or nil
 ```
 
-A barcode in any spelling — spaces, UPC-A, EAN-13 — finds the one product it
-names. Codes are filed as EAN-13 (a UPC-A gets its leading zero) and checked
-against their check digit by `Openmarket::Ean`; a code that is not a barcode
-(a house code) is kept as typed. Over HTTP, the engine answers:
+A barcode in any spelling finds the one product it names. `Openmarket::Ean`
+files every GTIN by its value, as Open Food Facts does: a UPC-A gets its
+leading zero (EAN-13), an EAN-8 stays 8 digits however it is padded, a GTIN-14
+with a zero indicator is the EAN-13 inside it, and a UPC-E (the short code on
+a 12oz can) is expanded to its UPC-A. Check digits are checked; a code that is
+not a barcode (a house code) is kept as typed. A code is unique per owner: the
+shared catalogue has one Brahma, and an org may file its own under the same
+barcode (`lookup(code, org:)` gives the org's own first). Over HTTP:
 
     GET /products/lookup/7891991010023.json    one product, 404 if the catalogue lacks it
     GET /products/search.json?q=brah           up to 20, name, code or brand
@@ -80,7 +90,13 @@ sources, published as one file, loadable anywhere.
     bin/rails openmarket:import:off LIMIT=1000      # no FILE: downloads their dump (several GB)
 
 Re-running refreshes what an import wrote and leaves alone what a person
-corrected (`source` is `"off"` on imported rows, nil on hand-made ones).
+corrected: `source` is `"off"` on imported rows, and any edit by a person to
+what a row says (name, code, kind, size...) clears it, so the row is theirs.
+
+The import and restore tasks first bring an existing database up to date:
+they unset stored null codes, give old brands their folded `key` (warning
+about two spellings of one name, to merge by hand), drop the old index that
+made a code unique across orgs, create the indexes, and fill `tokens`.
 
 **Load it** from the published dump — no scraping needed:
 

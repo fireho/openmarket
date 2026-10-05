@@ -28,6 +28,19 @@ class Brand
 
   def self.key_for(name) = Openmarket::Text.fold(name).presence
 
+  # Brands made before `key` existed get theirs. Two spellings of one name
+  # cannot both have it: the later ones are returned, for a person to merge.
+  def self.backfill_keys
+    clashes = []
+    where(key: nil).each do |brand|
+      key = key_for(brand.name) or next
+      if where(key: key).exists? then clashes << brand.name
+      else brand.set(key: key)
+      end
+    end
+    clashes
+  end
+
   # The brand a written name means, in whatever case and accents it came in.
   # Brands made before `key` existed have none, so the exact name is the second try.
   def self.named(name)

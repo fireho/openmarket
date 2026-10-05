@@ -55,6 +55,38 @@ RSpec.describe Openmarket::Dump do
     expect(File.read(path).lines.size).to eq(3)
   end
 
+  it "leaves no dump behind when writing fails halfway" do
+    path = File.join(Dir.mktmpdir, "dump.ndjson.gz")
+    failing = Enumerator.new do |out|
+      out << records.first
+      raise "cursor lost"
+    end
+
+    expect { described_class.write(path, failing) }.to raise_error("cursor lost")
+    expect(Dir.children(File.dirname(path))).to be_empty
+  end
+
+  it "keeps the last good dump when the next one fails" do
+    path = File.join(Dir.mktmpdir, "dump.ndjson")
+    described_class.write(path, records)
+    expect { described_class.write(path, Enumerator.new { raise "boom" }) }.to raise_error("boom")
+
+    expect(File.read(path).lines.size).to eq(3)
+  end
+
+  it "reads UTF-8 whatever the shell's locale" do
+    path = File.join(Dir.mktmpdir, "dump.ndjson")
+    described_class.write(path, records)
+    external = Encoding.default_external
+    Encoding.default_external = Encoding::US_ASCII
+
+    got = []
+    described_class.read(path) { |record| got << record }
+    expect(got.last["name"]).to eq("pt" => "Cerveja Brahma é boa")
+  ensure
+    Encoding.default_external = external
+  end
+
   it "refuses what is not a dump" do
     expect { described_class.read(StringIO.new(%({"a":1}\n))) { } }.to raise_error(described_class::Error, /not an openmarket dump/)
     expect { described_class.read(StringIO.new("")) { } }.to raise_error(described_class::Error, /empty/)

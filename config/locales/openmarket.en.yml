@@ -27,6 +27,7 @@ en:
         countries: Sold in
         tags: Categories
         source: Source
+        tokens: Search words
       brand:
         name: Name
         info: About
@@ -56,6 +57,8 @@ en:
           soda: Soda
           juice: Juice
           energy: Energy drink
+          mixed: Ready-to-drink
+          tea: Iced tea
         pack_enums:
           can: Can
           grf: Bottle

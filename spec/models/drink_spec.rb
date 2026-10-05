@@ -22,7 +22,7 @@ RSpec.describe Drink, type: :model do
 
   describe "Validations" do
     it { is_expected.to validate_presence_of(:name) }
-    it { is_expected.to validate_uniqueness_of(:code) }
+    it { is_expected.to validate_uniqueness_of(:code).scoped_to(:org_id) }
     it do
       is_expected.to validate_inclusion_of(:kind).to_allow(Drink.kinds.keys)
     end
@@ -56,14 +56,14 @@ RSpec.describe Drink, type: :model do
   end
 
   describe "Indexing" do
-    it "has a sparsed index on code" do
+    it "has a unique index on code per owner, over the rows that have one" do
       index =
         Drink.index_specifications.detect do |idx|
-          idx.key == { code: 1 }
+          idx.key == { code: 1, org_id: 1 }
         end
       expect(index).to be_present
       expect(index.options[:unique]).to be true
-      expect(index.options[:sparse]).to be true
+      expect(index.options[:partial_filter_expression]).to eq(code: { "$type" => "string" })
     end
   end
 

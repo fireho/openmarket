@@ -16,18 +16,18 @@ RSpec.describe Product, type: :model do
 
   describe "Validations" do
     it { is_expected.to validate_presence_of(:name) }
-    it { is_expected.to validate_uniqueness_of(:code) }
+    it { is_expected.to validate_uniqueness_of(:code).scoped_to(:org_id) }
   end
 
   describe "Indexing" do
-    it "has a sparsed index on code" do
+    it "has a unique index on code per owner, over the rows that have one" do
       index =
         Product.index_specifications.detect do |idx|
-          idx.key == { code: 1 }
+          idx.key == { code: 1, org_id: 1 }
         end
       expect(index).to be_present
       expect(index.options[:unique]).to be true
-      expect(index.options[:sparse]).to be true
+      expect(index.options[:partial_filter_expression]).to eq(code: { "$type" => "string" })
     end
   end
 
@@ -50,6 +50,66 @@ RSpec.describe Product, type: :model do
       Product.create!(name: "Cola", code: "0036000291452")
 
       expect(Product.new(name: "Other cola", code: "036000291452")).not_to be_valid
+    end
+  end
+
+  describe "#name" do
+    it "falls back to a name in any language" do
+      product = Product.new(name_translations: { "es" => "Cerveza Quilmes" })
+
+      I18n.with_locale(:pt) { expect(product.name).to eq("Cerveza Quilmes") }
+    end
+  end
+
+  describe "a code-less product" do
+    it "stores no code at all, so two of them fit the unique index" do
+      first = Product.create!(name: "Caipirinha", code: "")
+      second = Product.create!(name: "Chopp")
+
+      expect(first.reload.attributes).not_to have_key("code")
+      expect(second).to be_persisted
+    end
+  end
+
+  describe "#source" do
+    it "is cleared when a person edits what an import wrote" do
+      product = Product.create!(name: "Brahma", code: "7891991010023", source: "off")
+      product.update!(name: "Brahma Chopp")
+
+      expect(product.reload.source).to be_nil
+    end
+
+    it "stays while an importer writes" do
+      product = Product.create!(name: "Brahma", code: "7891991010023", source: "off")
+      product.importing = true
+      product.update!(name: "Brahma Chopp")
+
+      expect(product.reload.source).to eq("off")
+    end
+
+    it "stays when only the host's own counters change" do
+      product = Product.create!(name: "Brahma", code: "7891991010023", source: "off")
+      product.update!(uses: 3)
+
+      expect(product.reload.source).to eq("off")
+    end
+  end
+
+  describe "#tokens" do
+    it "holds the folded words of every name and of the brand" do
+      brand = Brand.create!(name: "Ambev")
+      product = Product.create!(name_translations: { "pt" => "Cerveja Antártica", "en" => "Antarctica Beer" }, brand: brand)
+
+      expect(product.tokens).to contain_exactly("cerveja", "antartica", "antarctica", "beer", "ambev")
+    end
+  end
+
+  describe "code per owner" do
+    it "lets an org file its own product under a barcode the shared catalogue has" do
+      Product.create!(name: "Brahma", code: "7891991010023")
+      own = Product.new(name: "Brahma do bar", code: "7891991010023", org_id: BSON::ObjectId.new)
+
+      expect(own).to be_valid
     end
   end
 
@@ -141,7 +201,25 @@ RSpec.describe Product, type: :model do
 
     it "takes the term as text, not a pattern" do
       expect { Product.search("(").to_a }.not_to raise_error
-      expect(Product.search("Test (").count).to eq(0)
+      expect { Product.search("Test (").to_a }.not_to raise_error
+    end
+
+    it "matches the start of every word, accents aside" do
+      Product.create!(name: "Cerveja Antártica Original", code: "4006381333931")
+
+      expect(Product.search("antar orig").count).to eq(1)
+      expect(Product.search("ANTÁRTICA").count).to eq(1)
+      expect(Product.search("ntarti").count).to eq(0) # a prefix, not any substring
+    end
+
+    it "finds a name in a language that is not the current one" do
+      Product.create!(name_translations: { "es" => "Cerveza Quilmes" }, code: "5901234123457")
+
+      expect(Product.search("quilmes").count).to eq(1)
+    end
+
+    it "matches the start of a code" do
+      expect(Product.search("1234").count).to eq(1)
     end
 
     it "is case insensitive" do

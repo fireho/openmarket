@@ -69,10 +69,75 @@ RSpec.describe Openmarket::Importer do
     expect(importer.errors).to eq([ "1: Name can't be blank" ])
   end
 
-  it "does not stop for a brand that will not save" do
+  it "takes a blank brand for no brand" do
     importer.call([ entry(brand: "   ") ])
 
     expect(importer.stats).to eq(created: 1)
+    expect(Fake::Product.rows.first.brand).to be_nil
+  end
+
+  it "does not stop for a brand that will not save" do
+    allow_any_instance_of(Fake::Brand).to receive(:save).and_return(false)
+    importer.call([ entry(brand: "Brahma") ])
+
+    expect(importer.stats).to eq(created: 1, brand_invalid: 1)
+    expect(Fake::Product.rows.first.brand).to be_nil
+  end
+
+  it "does not stop for a row that raises" do
+    allow(Fake::Drink).to receive(:new).and_call_original
+    allow(Fake::Drink).to receive(:new).with(hash_including(code: "4006381333931")).and_raise(TypeError, "bad value")
+    importer.call([ entry(code: "4006381333931"), entry(code: "5901234123457") ])
+
+    expect(importer.stats).to eq(invalid: 1, created: 1)
+    expect(importer.errors).to eq([ "4006381333931: TypeError: bad value" ])
+  end
+
+  it "refuses a row with no code instead of matching a codeless product" do
+    Fake::Product.new(name_translations: { "pt" => "Chopp da casa" }).save
+    importer.call([ entry(code: nil), entry(code: "  ") ])
+
+    expect(importer.stats).to eq(invalid: 2)
+    expect(Fake::Product.rows.map(&:name)).to eq([ "Chopp da casa" ])
+  end
+
+  it "files the code in its canonical spelling" do
+    importer.call([ entry(code: "036000291452") ])
+
+    expect(Fake::Product.rows.first.code).to eq("0036000291452")
+  end
+
+  it "finds a row stored under another spelling of its barcode" do
+    old = Fake::Drink.new(code: "036000291452", name_translations: { "pt" => "Old" }, source: "off")
+    Fake::Product.rows << old # saved before codes were normalised
+    importer.call([ entry(code: "0036000291452", name: "New") ])
+
+    expect(importer.stats).to eq(updated: 1)
+    expect(Fake::Product.rows).to eq([ old ])
+    expect(old.name).to eq("New")
+  end
+
+  it "is not blocked by an org's own product with the same barcode" do
+    Fake::Drink.new(code: "7891991010023", org_id: "bar-42", name_translations: { "pt" => "Brahma do bar" }).save
+    importer.call([ entry ])
+
+    expect(importer.stats).to eq(created: 1)
+    expect(Fake::Product.shared.rows.map(&:name)).to eq([ "Cerveja Brahma" ])
+    expect(Fake::Product.rows.find(&:org_id).name).to eq("Brahma do bar")
+  end
+
+  it "marks its own saves as imports, so they do not count as a person's edit" do
+    importer.call([ entry ])
+
+    expect(Fake::Product.rows.first.importing).to be true
+  end
+
+  it "finds a brand made before keys existed by its name" do
+    legacy = Fake::Brand.legacy("Brahma")
+    importer.call([ entry(brand: "Brahma") ])
+
+    expect(Fake::Brand.rows).to eq([ legacy ])
+    expect(Fake::Product.rows.first.brand).to equal(legacy)
   end
 
   it "says how far it is" do

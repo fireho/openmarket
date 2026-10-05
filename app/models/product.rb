@@ -18,7 +18,8 @@ class Product
   field :quantity,  type: String          # as the label says it: "350 ml", "6 x 330 ml"
   field :countries, type: Array, default: [] # where it is sold, as slugs: "brazil"
   field :tags,      type: Array, default: [] # the source's categories, as slugs: "beers", "lagers"
-  field :source,    type: String          # where the row came from: "off"; nil when typed by hand
+  field :source,    type: String          # where the row came from: "off"; nil when a person wrote it
+  field :tokens,    type: Array, default: [] # its names' and brand's words, folded: what `search` matches
 
   belongs_to :brand, optional: true
 
@@ -29,12 +30,29 @@ class Product
   belongs_to :org, optional: true
 
   validates :name, presence: true
-  validates :code, uniqueness: true, allow_blank: true
+  # One barcode per owner: the shared catalogue has one Brahma, and an org's
+  # own Brahma (filed before the catalogue had it) never blocks it.
+  validates :code, uniqueness: { scope: :org_id }, allow_blank: true
+
+  # What a person corrects. An import refreshes rows it wrote (`source`); once
+  # someone edits one of these, the row is theirs and imports leave it alone.
+  OWNED = %w[ name info code brand_id image quantity countries tags kind pack size acl ].freeze
+
+  # Set by an importer while it writes, so its own saves do not count as edits.
+  attr_accessor :importing
 
   # A barcode has one spelling in the catalogue (UPC-A becomes EAN-13), so the
   # uniqueness above and the scan in `lookup` mean the same thing. A code that
-  # is not a barcode — an isbn-10, a house code — is left as it was typed.
-  before_validation { self.code = Openmarket::Ean.normalize(code) || code }
+  # is not a barcode — an isbn-10, a house code — is left as it was typed. No
+  # code is no field at all: a stored null would collide in the unique index.
+  before_validation do
+    if code.present? then self.code = Openmarket::Ean.normalize(code) || code
+    elsif attributes.key?("code") then remove_attribute(:code)
+    end
+  end
+
+  before_save { self.source = nil if source && !importing && edited? }
+  before_save { self.tokens = tokenize }
 
   scope :shared, -> { where(org_id: nil) }
   scope :of,     ->(org) { where(org_id: org) }
@@ -44,18 +62,23 @@ class Product
     org ? any_of({ org_id: nil }, { org_id: org.try(:id) || org }) : shared
   end
 
-  # Creates a unique index on the name and brand fields
-  index({ code: 1 }, { unique: true, sparse: true })
+  # Only rows with a code are in it — a missing code is not a value to be unique.
+  index({ code: 1, org_id: 1 }, { unique: true, partial_filter_expression: { code: { "$type" => "string" } } })
   index({ name: 1, brand_id: 1 })
   index({ brand_id: 1 }) # a brand's shelf, and `search` by brand
   index({ org_id: 1, name: 1 }) # an org reading its own shelf
+  index({ tokens: 1 }) # `search`
 
   # One collection (STI), so ask the document, not its class name.
   def drink? = is_a?(Drink)
   def food?  = is_a?(Food)
 
+  # A name in any language beats none: a row imported as { "es" => "Cerveza
+  # Quilmes" } still reads "Cerveza Quilmes" where the locale is pt.
+  def name = super.presence || name_translations&.values&.find(&:present?)
+
   # The scan: a barcode in any spelling — UPC-A, EAN-13, with spaces — and the
-  # one product it names, or nil. `org` widens it to that org's own as well.
+  # one product it names, or nil. With `org`, that org's own comes first.
   #
   #   Product.lookup("7 891991 010023")   # => the Brahma
   def self.lookup(code, org: nil)
@@ -63,16 +86,42 @@ class Product
 
     spellings = Openmarket::Ean.variants(code)
     spellings = [ code.to_s.strip ] if spellings.empty?
-    self.for(org).where(code: { "$in" => spellings }).first
+    self.for(org).where(code: { "$in" => spellings }).order_by(org_id: -1).first
   end
 
-  # Name, barcode, or the brand's name — brand is a relation, so it is a lookup
-  # and then an id, not a regex on this document. The term is text, not a
-  # pattern: "(" is a typo, not a regexp error.
+  # What someone typing wants: every word a prefix of a word in the name (in
+  # any language) or the brand, accents and case aside — "antar orig" finds
+  # "Antártica Original"; or the start of a code; or a brand's name. Each
+  # clause is a prefix on an index, so it stays fast on a big catalogue.
+  # The term is text, not a pattern: "(" is a typo, not a regexp error.
   def self.search(term)
     return all unless term.present?
-    like = /#{Regexp.escape(term.to_s.strip)}/i
-    brands = Brand.where(name: like).pluck(:_id)
-    any_of({ name: like }, { code: like }, { brand_id: { "$in" => brands } })
+
+    text = term.to_s.strip
+    words = Openmarket::Text.tokens(text)
+    brands = Brand.where(key: /\A#{Regexp.escape(Openmarket::Text.fold(text))}/).pluck(:_id)
+
+    clauses = [ { code: /\A#{Regexp.escape(text.delete(' '))}/ }, { brand_id: { "$in" => brands } } ]
+    clauses << { tokens: { "$all" => words.map { |word| /\A#{Regexp.escape(word)}/ } } } if words.any?
+    any_of(*clauses)
+  end
+
+  # Rows saved before `tokens` existed get theirs, without counting as edits.
+  def self.backfill_tokens
+    any_of({ tokens: nil }, { tokens: [] }).each { |product| product.set(tokens: product.tokenize) }
+  end
+
+  def tokenize = Openmarket::Text.tokens(name_translations&.values, brand&.name)
+
+  # Did a person change what the row says? Not blank to blank, and not a
+  # default Mongoid fills into a field the stored row lacks (it reports those
+  # as changes the moment a row is loaded).
+  def edited?
+    changes.any? do |field, (was, now)|
+      next false unless OWNED.include?(field)
+      next false if was.blank? && now.blank?
+
+      !(was.nil? && now == self.class.fields[field]&.default_val)
+    end
   end
 end

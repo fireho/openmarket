@@ -1,3 +1,4 @@
+require "openmarket/ean"
 require "openmarket/text"
 
 module Openmarket
@@ -16,9 +17,9 @@ module Openmarket
     attr_reader :stats, :errors
 
     # `refresh` is asked about a product that is already there: may this import
-    # overwrite it? By default only what an earlier import wrote — a row someone
-    # corrected by hand is theirs now. `progress` hears the stats every `every`
-    # entries. The collaborators are the models; a spec hands in its own.
+    # overwrite it? By default only what an earlier import wrote and nobody has
+    # edited since (an edit clears `source`). `progress` hears the stats every
+    # `every` entries. The collaborators are the models; a spec hands in its own.
     def initialize(refresh: ->(product) { product.source == "off" }, progress: nil, every: 1000,
                    brands: ::Brand, products: ::Product, types: nil)
       @refresh, @progress, @every = refresh, progress, every
@@ -36,18 +37,27 @@ module Openmarket
     end
 
     def import(entry)
-      klass = @types.fetch(entry[:type])
-      attrs = entry[:attrs].merge(brand: brand(entry[:brand], source: entry[:attrs][:source]))
-      product = @products.shared.where(code: entry[:code]).first
+      code = Ean.normalize(entry[:code]) || entry[:code].to_s.strip
+      return outcome(:invalid, entry, "no code") if code.empty?
+
+      klass = @types.fetch(entry[:type]) { return outcome(:invalid, entry, "unknown type #{entry[:type].inspect}") }
+      attrs = entry[:attrs].merge(code: code, brand: brand(entry[:brand], source: entry[:attrs][:source]))
+      # Found by any spelling, as a scan finds it: a row typed as a UPC-A is
+      # the same product as the EAN-13 this import brings.
+      spellings = Ean.variants(code).then { |found| found.empty? ? [ code ] : found }
+      product = @products.shared.where(code: { "$in" => spellings }).first
 
       if product.nil?
         product = klass.new(attrs)
-        outcome(product, entry, product.save ? :created : :invalid)
+        saved(product, entry, :created)
       elsif product.is_a?(klass) && @refresh.call(product)
-        outcome(product, entry, product.update(attrs) ? :updated : :invalid)
+        product.assign_attributes(attrs)
+        saved(product, entry, :updated)
       else
-        outcome(product, entry, :kept)
+        outcome(:kept, entry)
       end
+    rescue StandardError => e
+      outcome(:invalid, entry, "#{e.class}: #{e.message}")
     ensure
       @seen += 1
       @progress&.call(stats) if (@seen % @every).zero?
@@ -73,15 +83,27 @@ module Openmarket
         end
       end
       @cache[key] = found
+    rescue StandardError => e
+      stats[:brand_invalid] += 1
+      remember("brand #{name.inspect}: #{e.class}: #{e.message}")
+      nil
     end
 
     private
 
-    def outcome(product, entry, result)
+    def saved(product, entry, result)
+      product.importing = true if product.respond_to?(:importing=)
+      product.save ? outcome(result, entry) : outcome(:invalid, entry, product.errors.full_messages.join(", "))
+    end
+
+    def outcome(result, entry, why = nil)
       stats[result] += 1
-      if result == :invalid && @errors.size < 50
-        @errors << "#{entry[:code]}: #{product.errors.full_messages.join(', ')}"
-      end
+      remember("#{entry[:code]}: #{why}") if why
+      result
+    end
+
+    def remember(error)
+      @errors << error if @errors.size < 50
     end
   end
 end

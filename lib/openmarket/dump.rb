@@ -51,7 +51,7 @@ module Openmarket
         io.each_line do |line|
           next if line.strip.empty?
 
-          data = JSON.parse(line)
+          data = JSON.parse(line.scrub)
           if head.nil?
             head = data
             raise Error, "not an openmarket dump" unless head.is_a?(Hash) && head.key?("openmarket")
@@ -69,25 +69,35 @@ module Openmarket
       record.reject { |_, value| value.nil? || (value.respond_to?(:empty?) && value.empty?) }
     end
 
+    # A dump that fails halfway must not look like a finished one, so it is
+    # written beside the target and moved into place only when complete.
     def self.writing(target, &block)
       return yield(target) if target.respond_to?(:puts)
 
       path = target.to_s
+      partial = "#{path}.partial"
       if path.end_with?(".gz")
-        Zlib::GzipWriter.open(path) do |gz|
+        Zlib::GzipWriter.open(partial) do |gz|
           gz.mtime = 0 # same catalogue, same bytes
           yield gz
         end
       else
-        File.open(path, "w", &block)
+        File.open(partial, "w:UTF-8", &block)
       end
+      File.rename(partial, path)
+    ensure
+      File.delete(partial) if partial && File.exist?(partial)
     end
 
     def self.reading(source, &block)
       return yield(source) if source.respond_to?(:read)
 
       path = source.to_s
-      path.end_with?(".gz") ? Zlib::GzipReader.open(path, &block) : File.open(path, &block)
+      if path.end_with?(".gz")
+        Zlib::GzipReader.open(path, external_encoding: Encoding::UTF_8, &block)
+      else
+        File.open(path, "r:UTF-8", &block)
+      end
     end
   end
 end

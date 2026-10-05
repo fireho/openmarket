@@ -19,9 +19,21 @@ RSpec.describe Openmarket::Ean do
       expect(described_class.normalize("14006381333938")).to eq("14006381333938")
     end
 
+    it "keeps an EAN-8 however many zeros pad it" do
+      expect(described_class.normalize("0000096385074")).to eq("96385074")
+      expect(described_class.normalize("00000096385074")).to eq("96385074")
+    end
+
+    it "expands a UPC-E to the UPC-A it compresses" do
+      # The Coca-Cola can: UPC-E 04963406 is UPC-A 049000006346.
+      expect(described_class.normalize("04963406")).to eq("0049000006346")
+      expect(described_class.normalize("049000006346")).to eq("0049000006346")
+    end
+
     it "takes the spaces and dashes a person types" do
       expect(described_class.normalize(" 4 006381 333931 ")).to eq("4006381333931")
       expect(described_class.normalize("4006381-333931")).to eq("4006381333931")
+      expect(described_class.normalize("4006381\u00A0333931")).to eq("4006381333931")
     end
 
     it "refuses a wrong check digit" do
@@ -50,6 +62,18 @@ RSpec.describe Openmarket::Ean do
       expect(described_class.variants("4006381333931")).to eq(%w[ 4006381333931 04006381333931 ])
     end
 
+    it "lists the padded spellings of an EAN-8" do
+      expect(described_class.variants("96385074")).to eq(%w[ 96385074 00000096385074 0000096385074 000096385074 ])
+    end
+
+    it "keeps the UPC-E a row may have been typed as" do
+      expect(described_class.variants("04963406")).to include("0049000006346", "049000006346", "04963406")
+    end
+
+    it "never drops digits that are not zeros" do
+      expect(described_class.variants("4006381333931")).not_to include("006381333931")
+    end
+
     it "is empty for a non-barcode" do
       expect(described_class.variants("sku-9")).to eq([])
     end
@@ -60,6 +84,21 @@ RSpec.describe Openmarket::Text do
   it "folds case, accents and spaces" do
     expect(described_class.fold("  Antártica   Original ")).to eq("antartica original")
     expect(described_class.fold("ANTÁRTICA")).to eq(described_class.fold("antartica"))
+  end
+
+  it "keeps the marks that are letters in other scripts" do
+    expect(described_class.fold("ビール")).not_to eq(described_class.fold("ヒール"))
+    expect(described_class.fold("เบียร์")).to eq("เบียร์")
+  end
+
+  it "folds wide letters and bad bytes" do
+    expect(described_class.fold("Ｂｒａｈｍａ")).to eq("brahma")
+    expect(described_class.fold("Br\xFFa".dup.force_encoding("UTF-8"))).to eq("bra")
+  end
+
+  it "splits a text into folded words" do
+    expect(described_class.tokens("Cerveja Antártica Original", "Brahma-Chopp", nil))
+      .to eq(%w[ cerveja antartica original brahma chopp ])
   end
 
   it "folds nothing to nothing" do

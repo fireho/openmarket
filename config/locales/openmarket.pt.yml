@@ -27,6 +27,7 @@ pt:
         countries: Vendido em
         tags: Categorias
         source: Origem
+        tokens: Palavras de busca
       brand:
         name: Nome
         info: Sobre
@@ -56,6 +57,8 @@ pt:
           soda: Refrigerante
           juice: Suco
           energy: Energético
+          mixed: Drink pronto
+          tea: Chá gelado
         pack_enums:
           can: Lata
           grf: Garrafa

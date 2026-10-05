@@ -61,6 +61,19 @@ RSpec.describe Openmarket::Catalogue do
       expect(described_class.entry(record)[:attrs].keys).not_to include(:org_id, :sku, :_id, :org)
     end
 
+    it "takes a value in the wrong shape for no value" do
+      record = { "type" => "drink", "code" => "1", "name" => "Brahma", "countries" => "brazil", "tags" => [ "beers", 7 ],
+                 "size" => "350", "acl" => "4.8", "kind" => 5, "image" => [ "x" ] }
+      attrs = described_class.entry(record)[:attrs]
+
+      expect(attrs).to include(name_translations: nil, countries: [], tags: [ "beers" ], size: nil, acl: nil, kind: nil, image: nil)
+    end
+
+    it "keeps only the names that are text" do
+      expect(described_class.translations({ "pt" => "Cerveja", "en" => 5, "es" => " " })).to eq("pt" => "Cerveja")
+      expect(described_class.translations([ "Cerveja" ])).to be_nil
+    end
+
     it "takes an unknown type for a plain product" do
       expect(described_class.entry({ "type" => "gadget", "code" => "1" })[:type]).to eq("Product")
     end
@@ -88,6 +101,20 @@ RSpec.describe Openmarket::Catalogue do
         tags: %w[ beers ], source: "off", image: "https://images.openfoodfacts.org/b.jpg"
       )
       expect(restored.brand.name).to eq("Brahma")
+    end
+
+    it "counts a malformed row and loads the rest" do
+      path = File.join(Dir.mktmpdir, "dump.ndjson")
+      Openmarket::Dump.write(path, [
+        { "type" => "drink", "code" => "7891991010023", "name" => "a string, not a hash" },
+        { "type" => "drink", "code" => "5901234123457", "name" => { "pt" => "Cola" }, "kind" => "soda" },
+        { "type" => "drink", "name" => { "pt" => "No code" } }
+      ])
+
+      stats = described_class.restore(path, brands: Fake::Brand, products: Fake::Product, types: Fake::TYPES)
+
+      expect(stats).to eq(invalid: 2, created: 1)
+      expect(Fake::Product.rows.map(&:code)).to eq(%w[ 5901234123457 ])
     end
 
     it "keeps what is already there unless told to overwrite" do

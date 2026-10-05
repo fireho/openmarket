@@ -3,14 +3,15 @@ require "fileutils"
 namespace :openmarket do
   release = "https://github.com/fireho/openmarket/releases/latest/download/openmarket.ndjson.gz"
 
-  # A path as given, or a URL fetched into tmp/ first.
+  # A path as given, or a URL fetched into tmp/downloads/ first — never over
+  # tmp/openmarket.ndjson.gz, which is where `dump` writes yours.
   def openmarket_file(given, default_url: nil)
     given = given.presence || default_url
     abort "FILE=path|url is needed" unless given
     return given unless given.start_with?("http")
 
-    FileUtils.mkdir_p("tmp")
-    dest = File.join("tmp", File.basename(URI(given).path))
+    FileUtils.mkdir_p("tmp/downloads")
+    dest = File.join("tmp/downloads", File.basename(URI(given).path))
     puts "Downloading #{given} -> #{dest}"
     Openmarket::Download.fetch(given, dest)
   end
@@ -19,9 +20,20 @@ namespace :openmarket do
 
   def openmarket_progress(label) = ->(stats) { warn "#{label}: #{openmarket_counts(stats)}" }
 
+  # Bring rows from before the open catalogue up to it, then index: no stored
+  # null codes, a key on every brand, search words on every product. The old
+  # index made a code unique across orgs too; it gives way to one per owner.
   def openmarket_indexes
+    ::Product.where(code: nil).unset(:code)
+    clashes = ::Brand.backfill_keys
+    warn "Brands spelled like another, left without a key — merge them: #{clashes.join(', ')}" if clashes.any?
+
+    old = ::Product.collection.indexes.find { |index| index["name"] == "code_1" }
+    ::Product.collection.indexes.drop_one("code_1") if old && old["unique"]
+
     ::Brand.create_indexes
     ::Product.create_indexes
+    ::Product.backfill_tokens
   end
 
   desc "Write the shared catalogue as NDJSON. FILE=tmp/openmarket.ndjson.gz"
