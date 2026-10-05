@@ -10,6 +10,21 @@ class ProductsController < ApplicationController
   def show
   end
 
+  # GET /products/lookup/7891991010023 or .json — the scan: a barcode, in any
+  # spelling, and the one product it names. 404 when the catalogue lacks it.
+  def lookup
+    @product = Product.lookup(params[:code])
+    return head :not_found unless @product
+
+    render :show
+  end
+
+  # GET /products/search.json?q=brah — what to offer while someone types.
+  def search
+    @products = Product.search(params[:q]).limit(20)
+    render :index, formats: :json
+  end
+
   # GET /products/new
   def new
     @product = params[:type]&.classify&.constantize&.new || Product.new
@@ -68,6 +83,6 @@ class ProductsController < ApplicationController
 
   # Only allow a list of trusted parameters through.
   def product_params
-    params.expect(product: [:type, :name, :info, :kind, :code, :pack, :brand_id, :org_id, :size, :acl])
+    params.expect(product: [:type, :name, :info, :kind, :code, :pack, :brand_id, :org_id, :size, :acl, :image, :quantity])
   end
 end

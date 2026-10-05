@@ -13,6 +13,7 @@ class Drink < Product
   kind :wine, acl: 14
   kind :vodka, acl: 40
   kind :cognac, acl: 40
+  kind :cider, acl: 5
   kind :liquor, acl: 40
   kind :tequila, acl: 40
   kind :soda, acl: 0
@@ -27,20 +28,20 @@ class Drink < Product
   pack :mix, icon: ""
 
   field :size,  type: Integer # in milliliters
-  field :acl,   type: Integer # Alcohol in percentage
+  field :acl,   type: Float   # Alcohol by volume, in percent: 4.8, 40. nil when nobody knows
 
   validates :kind, inclusion: { in: Drink.kinds.keys }, allow_nil: true
   validates :pack, inclusion: { in: Drink.packs.keys }, allow_nil: true
 
-  # Validates that size and alcohol are positive integers
-  validates :acl,  numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  # Unknown is not zero: a beer with no label data is not a 0% beer.
+  validates :acl,  numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 100 }, allow_nil: true
   # A recipe has no bottle — nil size is fine, zero is not.
   validates :size, numericality: { only_integer: true, greater_than: 0 }, allow_blank: true # a form sends "", not nil
 
 
-  # Prints alcohol content nice with a percent sign
+  # Prints alcohol content nice with a percent sign: "4.8%", "40%"
   def alcohol
-    "#{acl}%"
+    "#{format('%g', acl)}%" if acl
   end
 
   # Prints size nice with a milliliter sign
@@ -48,17 +49,18 @@ class Drink < Product
     "#{size}ml"
   end
 
-  # "7.6%", "7,6", 7.6, 40 — all land as a rounded integer percent. Stripping
-  # every non-digit used to read 7.6% as 76, a beer three times a whisky.
+  # "7.6%", "7,6", 7.6, 40 — all land as the number they say, to two decimals;
+  # blank lands as nil. Stripping every non-digit used to read 7.6% as 76, a
+  # beer three times a whisky.
   def acl=(value)
-    num = value.to_s.tr(",", ".")[/\d+(?:\.\d+)?/]
-    self[:acl] = num ? num.to_f.round : 0
+    num = value.to_s.tr(",", ".")[/\d*\.?\d+/]
+    self[:acl] = num&.to_f&.round(2)
   end
 
   # For fun let's calculate how much you pay for alcohol
   # Expects price to be a Money object or a numeric value in the same currency/unit.
   def acl_price(price_obj)
-    return 0 if size.zero? || acl.zero?
+    return 0 if size.to_i.zero? || acl.to_f.zero?
     price = price_obj.is_a?(Money) ? price_obj : Money.new(price_obj.to_i) # Assuming default currency
     # This gives you the price per milliliter of pure alcohol
     # Ensure calculations are done carefully, especially if price_obj is Money
@@ -68,18 +70,5 @@ class Drink < Product
 
   def self.icon
     "".freeze # 󰂘  󱄖  󰗲
-  end
-
-  # Import a line of written data
-  # Egs:
-  # Cerveja Patagonia LATA 350ml  { name: "Cerveja Patagonia", kind: "beer", pack: "can", size: 350, acl: 4.8 }
-  # Cerveja Patagonia Lata 269 ml  { name: "Cerveja Patagonia", kind: "beer", pack: "can", size: 269, acl: 4.8 }
-  # Cerveja Amstel - GRF 330ml  { name: "Cerveja Amstel", kind: "beer", pack: "grf", size: 330, acl: 5.0 }
-  # Cerveja Amstel GRF 550 ml  { name: "Cerveja Amstel", kind: "beer", pack: "grf", size: 550, acl: 5.0 }
-  # Energético Furioso PET 2000 ml  { name: "Energético Furioso", kind: "energy", pack: "pet", size: 2000, acl: 0.0 }
-  # Refrigerante Furioso-Pet 200ml  { name: "Refrigerante Furioso-Pet", kind: "soda", pack: "pet", size: 200, acl: 0.0 }
-  def self.import(line)
-    #
-    self.class.create!()
   end
 end

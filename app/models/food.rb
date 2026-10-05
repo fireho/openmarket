@@ -23,13 +23,4 @@ class Food < Product
   def self.icon
     "󰌹".freeze # 󰌹 󰙎 󰂖
   end
-
-  # Import a line of written data
-  # Egs:
-  # Chocolate Montanha PC 500g  { name: "Chocolate Montanha", kind: "dessert", pack: "pc", size: 500, acl: 0.0 }
-  # Antipasto de Azeitona - Lata 230g  { name: "Antipasto de Azeitona", kind: "snack", pack: "can", size: 269, acl: 4.8 }
-  def self.import(line)
-    #
-    self.class.create!()
-  end
 end

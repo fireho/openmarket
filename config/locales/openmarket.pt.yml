@@ -22,9 +22,19 @@ pt:
         brand: Marca
         org: Organização
         uses: Usos
+        image: Imagem
+        quantity: Quantidade
+        countries: Vendido em
+        tags: Categorias
+        source: Origem
       brand:
         name: Nome
         info: Sobre
+        wikidata: Wikidata
+        country: País
+        site: Site
+        logo: Logo
+        source: Origem
       drink:
         kind: Tipo
         pack: Embalagem
@@ -40,6 +50,7 @@ pt:
           wine: Vinho
           vodka: Vodka
           cognac: Conhaque
+          cider: Sidra
           liquor: Licor
           tequila: Tequila
           soda: Refrigerante

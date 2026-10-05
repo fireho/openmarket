@@ -2,6 +2,7 @@ Openmarket::Engine.routes.draw do
   resources :products do
     collection do
       get :search
+      get "lookup/:code", action: :lookup, as: :lookup
     end
   end
 

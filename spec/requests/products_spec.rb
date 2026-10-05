@@ -48,6 +48,39 @@ RSpec.describe "/products", type: :request do
     end
   end
 
+  describe "GET /lookup/:code" do
+    it "answers the product a barcode names, as json" do
+      drink = Product.create! valid_drink_attributes
+      get lookup_products_url(code: drink.code, format: :json)
+
+      expect(response).to be_successful
+      expect(response.parsed_body).to include("code" => drink.code, "type" => "drink")
+    end
+
+    it "does not hand out what is the host's own" do
+      drink = Product.create! valid_drink_attributes
+      get lookup_products_url(code: drink.code, format: :json)
+
+      expect(response.parsed_body.keys).not_to include("org_id", "sku", "uses")
+    end
+
+    it "is a 404 when the catalogue lacks it" do
+      get lookup_products_url(code: "4006381333931", format: :json)
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "GET /search" do
+    it "lists what matches, as json" do
+      drink = Product.create! valid_drink_attributes
+      get search_products_url(q: drink.name.first(4), format: :json)
+
+      expect(response).to be_successful
+      expect(response.parsed_body.map { |row| row["code"] }).to include(drink.code)
+    end
+  end
+
   describe "GET /new" do
     it "renders a successful response" do
       get new_product_url

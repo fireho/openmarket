@@ -5,10 +5,13 @@ name, code (ean/isbn), brand, image — with `Drink` and `Food` as the two
 shapes that carry extra fields. The price lives in the host app, on whatever
 offers the thing (a menu, a shelf, an order).
 
-    Brand     Ambev, Coca-Cola — a name products point at
-    Product   the thing: name, code, sku, brand, org
-    Drink     + kind (beer, gin, wine...), pack (can, grf, pet...), size ml, acl %
+    Brand     Ambev, Coca-Cola — a name products point at (+ wikidata, country, site, logo)
+    Product   the thing: name, code, sku, brand, org (+ image, quantity, countries, tags, source)
+    Drink     + kind (beer, gin, wine...), pack (can, grf, pet...), size ml, acl % (a float, nil when unknown)
     Food      + kind (pizza, burger, meat...), size g
+
+The goal is an open catalogue of the world's drinks (food after) that anyone
+can load: a bar scans a Brahma and never types it. See *The open catalogue* below.
 
 `Drink` and `Food` are STI on the `products` collection, so one query reads
 the whole catalogue and `product.drink?` asks what a row is.
@@ -37,7 +40,8 @@ strings when you read them back, so the model validates its own list.
 Drink.kinds.keys            # => ["beer", "water", "whisky", ...]
 drink = Drink.new(kind: :beer, pack: :can, size: 350, acl: "7.6%")
 drink.kind                  # => "beer"
-drink.acl                   # => 8  (rounded percent, however it was written)
+drink.acl                   # => 7.6  (a float, however it was written: "7,6", 7.6, "7.6%")
+drink.alcohol               # => "7.6%"
 drink.kind_name             # => "Cerveja" (i18n, mongoid.attributes.drink.kind_enums)
 ```
 
@@ -49,6 +53,60 @@ Product.search("brahma")    # name, code, or the brand's name
 
 Name is localized, so mongoid queries the current locale. Brand is a
 relation: search looks brands up by name and matches `brand_id`.
+
+## Lookup
+
+```ruby
+Product.lookup("7 891991 010023")   # => the product, or nil
+```
+
+A barcode in any spelling — spaces, UPC-A, EAN-13 — finds the one product it
+names. Codes are filed as EAN-13 (a UPC-A gets its leading zero) and checked
+against their check digit by `Openmarket::Ean`; a code that is not a barcode
+(a house code) is kept as typed. Over HTTP, the engine answers:
+
+    GET /products/lookup/7891991010023.json    one product, 404 if the catalogue lacks it
+    GET /products/search.json?q=brah           up to 20, name, code or brand
+
+## The open catalogue
+
+The shared catalogue (`org: nil`) is meant to be public: filled from open
+sources, published as one file, loadable anywhere.
+
+**Fill it** from Open Food Facts — drinks only, and only those it can place
+(kind, valid barcode, a name); a row it cannot place is skipped, never guessed.
+
+    bin/rails openmarket:import:off FILE=openfoodfacts-products.jsonl.gz COUNTRIES=en:brazil
+    bin/rails openmarket:import:off LIMIT=1000      # no FILE: downloads their dump (several GB)
+
+Re-running refreshes what an import wrote and leaves alone what a person
+corrected (`source` is `"off"` on imported rows, nil on hand-made ones).
+
+**Load it** from the published dump — no scraping needed:
+
+    bin/rails openmarket:restore                    # the latest GitHub release
+    bin/rails openmarket:restore FILE=openmarket.ndjson.gz OVERWRITE=1
+
+**Publish it** (`bin/rails openmarket:dump`, then attach `tmp/openmarket.ndjson.gz`
+to a GitHub release). The dump is NDJSON — readable without Mongo:
+
+    zcat openmarket.ndjson.gz | jq -c 'select(.code == "7891991010023")'
+
+    {"openmarket":1,"generated_at":"2026-10-05","license":"ODbL-1.0",...}
+    {"type":"brand","name":"Brahma"}
+    {"type":"drink","code":"7891991010023","name":{"pt":"Cerveja Brahma"},"brand":"Brahma","kind":"beer","pack":"can","size":350,"acl":4.8,...}
+
+Records are keyed by code and brand name, never by a Mongo id, and sorted, so a
+dump loads into any database and two dumps diff cleanly. Only shared products
+with a code travel: an org's own products, `sku` and `uses` never leave.
+
+### Data and license
+
+The code is MIT. The data is not: what comes from [Open Food Facts](https://world.openfoodfacts.org)
+is under the [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/), so a
+dump built from it is published under the ODbL too, with attribution (the dump's
+header carries the notice). Product images are not copied — `image` is a link to
+where they live, under their own license.
 
 ## Installation
 
@@ -62,9 +120,13 @@ Needs mongoid and, for the enums, fire's `Enumere`. Locally: `bundle config set 
 
 ## Specs
 
-The fabricators are here (`spec/fabricators/product_fabricator.rb`): one
-`:product`, with `:drink` and `:food` inheriting it. The gem has no harness of
-its own yet — the host app that loads it runs them.
+`bin/rspec spec/lib` runs the plain-Ruby specs — barcodes, the Open Food Facts
+mapper, the dump format, the importer on fake models — with no Rails and no Mongo.
+
+The model and request specs (`spec/models`, `spec/requests`) need Mongo and the
+fabricators here (`spec/fabricators/product_fabricator.rb`): one `:product`, with
+`:drink` and `:food` inheriting it. The gem has no harness for those yet — the
+host app that loads it runs them.
 
 ## License
 

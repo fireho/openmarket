@@ -22,9 +22,19 @@ en:
         brand: Brand
         org: Org
         uses: Uses
+        image: Image
+        quantity: Quantity
+        countries: Sold in
+        tags: Categories
+        source: Source
       brand:
         name: Name
         info: About
+        wikidata: Wikidata
+        country: Country
+        site: Website
+        logo: Logo
+        source: Source
       drink:
         kind: Kind
         pack: Pack
@@ -40,6 +50,7 @@ en:
           wine: Wine
           vodka: Vodka
           cognac: Cognac
+          cider: Cider
           liquor: Liquor
           tequila: Tequila
           soda: Soda

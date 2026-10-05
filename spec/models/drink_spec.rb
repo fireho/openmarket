@@ -31,8 +31,8 @@ RSpec.describe Drink, type: :model do
     end
     it do
       is_expected.to validate_numericality_of(:acl).to_allow(
-        only_integer: true,
-        greater_than_or_equal_to: 0
+        greater_than_or_equal_to: 0,
+        less_than_or_equal_to: 100
       )
     end
     it do
@@ -135,6 +135,35 @@ RSpec.describe Drink, type: :model do
     end
   end
 
+  describe "#acl" do
+    it "keeps the decimals" do
+      expect(Drink.make(acl: "7.6%").acl).to eq(7.6)
+      expect(Drink.make(acl: "4,8").acl).to eq(4.8)
+      expect(Drink.make(acl: 40).acl).to eq(40.0)
+    end
+
+    it "is a float" do
+      expect(Drink.make(acl: 5).acl).to be_a(Float)
+    end
+
+    it "is unknown, not zero, when blank" do
+      drink = Drink.make(size: 350, acl: "")
+
+      expect(drink.acl).to be_nil
+      expect(drink).to be_valid
+      expect(drink.alcohol).to be_nil
+    end
+
+    it "prints the decimals, but not a needless .0" do
+      expect(Drink.make(acl: 4.8).alcohol).to eq("4.8%")
+      expect(Drink.make(acl: 40).alcohol).to eq("40%")
+    end
+
+    it "refuses more than 100" do
+      expect(Drink.make(acl: 140)).not_to be_valid
+    end
+  end
+
   describe "#size_ml" do
     it "returns the size with ml suffix" do
       drink = Drink.make(size: 750)
@@ -153,6 +182,14 @@ RSpec.describe Drink, type: :model do
     it "returns 0 if size is zero" do
       allow(drink).to receive(:size).and_return(0)
       expect(drink.acl_price(1000)).to eq(0)
+    end
+
+    it "returns 0 for a recipe with no bottle" do
+      expect(Drink.make(size: nil, acl: 5).acl_price(1000)).to eq(0)
+    end
+
+    it "returns 0 if alcohol is unknown" do
+      expect(Drink.make(size: 350, acl: nil).acl_price(1000)).to eq(0)
     end
 
     it "returns 0 if alcohol is zero" do

@@ -18,7 +18,7 @@ Fabricator(:drink, from: :product, class_name: "Drink") do
   name { Faker::Beer.name }
   kind { Drink.kinds.keys.sample }
   pack { Drink.packs.keys.sample }
-  acl  { Faker::Beer.alcohol } # "7.6%" — Drink#acl= rounds it to 8
+  acl  { Faker::Beer.alcohol } # "7.6%" — Drink#acl= reads it as 7.6
   size { Faker::Number.between(from: 50, to: 500) } # ml
 end
 
