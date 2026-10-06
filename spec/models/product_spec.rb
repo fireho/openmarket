@@ -196,6 +196,19 @@ RSpec.describe Product, type: :model do
     end
   end
 
+  describe "#brand_name=" do
+    it "keeps a product on the spelling it has, saved again" do
+      legacy = Brand.new(name: "ANTARTICA")
+      legacy.collection.insert_one(legacy.as_document.except("key")) # no key: a spelling waiting to be merged
+      Brand.create!(name: "Antártica")
+      product = Drink.create!(name: "Guaraná", brand: legacy, source: "off")
+
+      product.update!(brand_name: "ANTARTICA")
+      expect(product.reload.brand).to eq(legacy)
+      expect(product.source).to eq("off")
+    end
+  end
+
   describe ".lookup" do
     let!(:brahma) { Product.create!(name: "Brahma", code: "7891991010023") }
 
@@ -325,6 +338,12 @@ RSpec.describe Product, type: :model do
       expect(Product.parse("Porção de batata frita 400g")).to be_a(Food)
     end
 
+    it "leaves what the line does not say nil, never the model's default" do
+      drink = Product.parse("Heineken LN 330")
+      expect(drink.kind).to be_nil
+      expect(Product.parse("Can Blau 750ml").pack).to be_nil
+    end
+
     it "is nil for a line that says neither" do
       expect(Product.parse("Café 500g")).to be_nil
       expect(Product.parse("")).to be_nil
@@ -344,6 +363,39 @@ RSpec.describe Product, type: :model do
 
     it "does not take another size for it" do
       expect(Product.match("Brahma Chopp 600ml")).to be_nil
+    end
+
+    it "takes the one with the fewest words the line did not say" do
+      cola = Drink.create!(name: "Coca-Cola", code: "5449000000996", size: 350)
+      Drink.create!(name: "Coca-Cola Zero", code: "5449000131805", size: 350)
+
+      expect(Product.match("Coca-Cola lata 350ml")).to eq(cola)
+    end
+
+    it "is nil when two fit as well: the bar picks" do
+      Drink.create!(name: "Cerveja Brahma Zero", code: "4006381333931", size: 600)
+      Drink.create!(name: "Cerveja Brahma Duplo", code: "5901234123457", size: 600)
+
+      expect(Product.match("Cerveja Brahma 600ml")).to be_nil # Zero or Duplo: the line does not say
+      expect(Product.match("Brahma Zero 600ml").name).to eq("Cerveja Brahma Zero")
+    end
+
+    it "takes a kind word in the name for no extra word: a plain Brahma is the Chopp" do
+      Drink.create!(name: "Cerveja Brahma Zero", code: "4006381333931", size: 350)
+
+      expect(Product.match("Brahma 350ml")).to eq(brahma)
+    end
+
+    it "finds the catalogue's product without the menu's kind word" do
+      heineken = Drink.create!(name: "Heineken", code: "8712000900045", size: 330)
+
+      expect(Product.match("Cerveja Heineken Long Neck 330ml")).to eq(heineken)
+    end
+
+    it "does not take a case for a can" do
+      Drink.create!(name: "Guaraná Antarctica", code: "7891991000833", size: 350, pack: :kit)
+
+      expect(Product.match("Guaraná Antarctica lata 350ml")).to be_nil
     end
   end
 end

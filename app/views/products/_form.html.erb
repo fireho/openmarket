@@ -62,7 +62,8 @@
     <div class="form-control">
       <%= form.label(:brand_name) %>
       <%= form.text_field(:brand_name, list: "brand-names", autocomplete: "off",
-            data: { search: search_brands_path(format: :json) }, oninput: "suggestBrands(this)") %>
+            data: { search: (search_brands_path(format: :json) if respond_to?(:search_brands_path)) },
+            oninput: "suggestBrands(this)") %>
       <datalist id="brand-names"></datalist>
     </div>
     <div class="flex space-x-4 my-5">

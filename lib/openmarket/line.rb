@@ -79,6 +79,10 @@ module Openmarket
       end
     end.sort_by { |word, *| -word.size }.map { |word, *rest| [ /(?<![^ ])#{Regexp.escape(word)}s?(?![^ ])/, *rest ] }.freeze
 
+    # The words that only say what kind of thing it is ("cerveja", "refrigerante"),
+    # folded. A menu's "Cerveja Heineken" is the catalogue's "Heineken".
+    KIND_WORDS = KINDS.flat_map { |_, kinds| kinds.values }.flat_map { |words| Text.tokens(words.split(",")) }.uniq.freeze
+
     # A kit is a kit whatever is in it; otherwise the first pack named. "can"
     # never as the first word (a "Can Blau" is a cava), "LN" only in capitals,
     # "pet" never in a pet-nat. Boxes and pieces leave the name but say no

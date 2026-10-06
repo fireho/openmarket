@@ -254,6 +254,15 @@ RSpec.describe Openmarket::Builder do
       expect(err).to include("products 3", "brands 2", "Wrote 5 records")
     end
 
+    it "writes nothing when the gzip on stdin ends before its input does" do
+      second = Zlib.gzip(row(code: "5901234123457", product_name: "Cola").to_json + "\n")
+      _, err, status = build_dump(bin, "--off", "-", "--out", out, stdin: export + second)
+
+      expect(status).not_to be_success
+      expect(err).to include("ended before its input did")
+      expect(File.exist?(out)).to be false
+    end
+
     it "reads a path, keeps the countries asked for and stops at the limit" do
       _, err, status = build_dump(bin, "--off", path, "--countries", "en:brazil", "--limit", "1", "--out", out)
 

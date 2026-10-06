@@ -96,6 +96,12 @@ RSpec.describe Openmarket::Text do
     expect(described_class.fold("Br\xFFa".dup.force_encoding("UTF-8"))).to eq("bra")
   end
 
+  it "drops the invisible characters a paste brings" do
+    expect(described_class.fold("Brahma\u200B")).to eq("brahma")
+    expect(described_class.fold("\uFEFFBrahma\u00ADChopp")).to eq("brahmachopp")
+    expect(described_class.fold("Brahma\u2028Chopp")).to eq("brahma chopp")
+  end
+
   it "splits a text into folded words" do
     expect(described_class.tokens("Cerveja Antártica Original", "Brahma-Chopp", nil))
       .to eq(%w[ cerveja antartica original brahma chopp ])

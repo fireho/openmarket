@@ -45,14 +45,15 @@ jobs:
       # Streamed: their export is ~13GB gzipped and never lands on disk. `shell:
       # bash` means pipefail, so a broken download fails the build. With a
       # limit, build-dump stops reading early and curl exits 23 (it could not
-      # write): that one exit is fine, and only on curl's side of the pipe.
+      # write): that one exit is fine, only with a limit, and only on curl's
+      # side of the pipe. Without one, a short read is a failed build.
       - name: Build
         shell: bash
         run: |
           args=()
           if [ -n "$COUNTRIES" ]; then args+=(--countries "$COUNTRIES"); fi
           if [ -n "$LIMIT" ]; then args+=(--limit "$LIMIT"); fi
-          { curl -fsSL "$OFF_URL" || [ $? -eq 23 ]; } | bin/build-dump --off - --wikidata --out openmarket.ndjson.gz "${args[@]}"
+          { curl -fsSL "$OFF_URL" || { rc=$?; [ -n "$LIMIT" ] && [ $rc -eq 23 ]; }; } | bin/build-dump --off - --wikidata --out openmarket.ndjson.gz "${args[@]}"
 
       # A trial (countries or limit) is a prerelease, never latest: restore
       # keeps loading the last whole build.

@@ -119,4 +119,21 @@ RSpec.describe Brand, type: :model do
       expect(Brand.where(_id: brand.id)).not_to exist
     end
   end
+
+  describe "#aliases" do
+    it "keeps the key of a name it had, so the next import finds it" do
+      brand = Brand.create!(name: "Antartica")
+      brand.update!(name: "Antarctica")
+
+      expect(brand.aliases).to eq(%w[ antartica ])
+      expect(Brand.named("Antartica")).to eq(brand)
+    end
+
+    it "keeps no alias for a new casing of the same name" do
+      brand = Brand.create!(name: "BRAHMA")
+      brand.update!(name: "Brahma")
+
+      expect(brand.aliases).to eq([])
+    end
+  end
 end

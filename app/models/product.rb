@@ -86,6 +86,11 @@ class Product
 
   def brand_name=(name)
     name = name.to_s.squish
+    # The name it already has, saved again, is no move: a product filed under
+    # an old spelling stays there (and stays the import's) until someone
+    # types another brand.
+    return if brand && Brand.clean(brand.name) == Brand.clean(name)
+
     self.brand = Brand.key_for(name) && (Brand.named(name) || new_brand(name))
   end
 
@@ -120,24 +125,50 @@ class Product
 
   # A written line — "Cerveja Patagonia LATA 350ml  R$ 12,90" — as an unsaved
   # Drink or Food, or nil when the line says neither. See Openmarket::Line.
+  # What the line does not say stays nil — passed as nil, so the model's
+  # defaults (a beer, in a can) never fill it in.
   def self.parse(line)
     found = Openmarket::Line.parse(line)
     klass = { "Drink" => Drink, "Food" => Food }[found[:type]] or return
     keys = klass == Drink ? %i[ name code kind pack size acl ] : %i[ name code kind size ]
-    klass.new(found.slice(*keys).compact)
+    klass.new(found.slice(*keys))
   end
 
   # The product a written line means, if the catalogue has it: by its barcode
-  # when the line carries one, else by its words and size. A bar pasting
-  # "Brahma 600ml" gets the catalogue's Brahma, not a copy of it.
+  # when the line carries one, else by its words, size and pack. "Coca-Cola
+  # lata 350ml" is the Coca-Cola, not the Coca-Cola Zero: the candidate with
+  # the fewest words the line did not say wins, the org's own first. When two
+  # are as good — "Brahma 600ml" and three Brahmas of 600 ml — it is nil, never
+  # a guess: the bar picks.
   def self.match(line, org: nil)
     found = Openmarket::Line.parse(line)
     return lookup(found[:code], org: org) if found[:code]
-    return if found[:name].blank?
 
-    scope = self.for(org).search(found[:name])
+    words = Openmarket::Text.tokens(found[:name])
+    needed = words - Openmarket::Line::KIND_WORDS # "Cerveja Heineken" finds "Heineken"
+    needed = words if needed.empty?
+    return if needed.empty?
+
+    klass = { "Drink" => Drink, "Food" => Food }.fetch(found[:type], Product)
+    scope = klass.for(org).where(tokens: { "$all" => needed.map { |word| /\A#{Regexp.escape(word)}/ } })
     scope = scope.where(size: found[:size]) if found[:size]
-    scope.order_by(org_id: -1).first
+    scope = scope.where(pack: { "$ne" => "kit" }) unless found[:pack].to_s == "kit" # one can is not a case
+    best(scope.limit(50).to_a, words, found[:pack])
+  end
+
+  # The one candidate that fits best, or nil when two fit as well.
+  def self.best(candidates, words, pack)
+    ranked = candidates.map do |product|
+      extra = product.tokens.count do |token|
+        Openmarket::Line::KIND_WORDS.exclude?(token) && words.none? { |word| token.start_with?(word) }
+      end
+      fit = product.try(:pack).to_s == pack.to_s ? 0 : (product.try(:pack).blank? ? 1 : 2)
+      [ [ extra, fit, product.org_id ? 0 : 1 ], product ]
+    end.sort_by(&:first)
+    return if ranked.empty?
+    return if ranked.size > 1 && ranked[0][0] == ranked[1][0]
+
+    ranked[0][1]
   end
 
   # Rows saved before `tokens` existed get theirs, without counting as edits.

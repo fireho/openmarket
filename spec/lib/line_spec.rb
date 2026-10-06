@@ -372,4 +372,11 @@ RSpec.describe Openmarket::Line do
       expect(described_class.parse_all("\n  \n# only a comment\n")).to eq([])
     end
   end
+
+  describe "KIND_WORDS" do
+    it "holds the words that only say the kind, folded" do
+      expect(Openmarket::Line::KIND_WORDS).to include("cerveja", "refrigerante", "agua", "suco", "vinho")
+      expect(Openmarket::Line::KIND_WORDS).not_to include("heineken", "brahma")
+    end
+  end
 end

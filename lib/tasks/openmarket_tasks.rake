@@ -84,7 +84,9 @@ namespace :openmarket do
       # got to. A brand without a key is a spelling of another, waiting to be
       # merged (named just above): it would not save, so it is not asked about.
       brands = ::Brand.where(key: { "$ne" => nil }, wikidata: { "$in" => [ nil, "" ] }).order_by(name: 1)
-      brands = brands.where(name: { "$gt" => ENV["AFTER"] }) if ENV["AFTER"].present?
+      # ENV comes in the locale's encoding (binary under LANG=C): names are UTF-8.
+      after = ENV["AFTER"].to_s.dup.force_encoding(Encoding::UTF_8).scrub.presence
+      brands = brands.where(name: { "$gt" => after }) if after
       limit = ENV["LIMIT"].presence&.to_i
       brands = brands.limit(limit) if limit
       brands = brands.to_a
@@ -99,7 +101,7 @@ namespace :openmarket do
       filler.errors.each { |error| warn "  #{error}" }
       # What was written is saved. A brand Wikidata does not know stays blank,
       # so a run without AFTER would ask about the same ones again.
-      after = filler.last || ENV["AFTER"].presence
+      after = filler.last || after
       go_on = " Go on with AFTER=#{Shellwords.escape(after)}" if after && (stopped || brands.size == limit)
       summary = "#{openmarket_counts(filler.stats).presence || 'none'} of #{brands.size} brands.#{go_on}"
       abort "Stopped: #{stopped}\n#{summary}" if stopped

@@ -6,9 +6,14 @@ module Openmarket
     # Thai the marks are part of the letter: ビール is not ヒール.
     ACCENTS = /(?<=[\p{Latin}\p{Greek}\p{Cyrillic}])\p{Mn}+/
 
+    # Invisible characters a paste brings along — a BOM, a zero-width space, a
+    # soft hyphen — are no part of a name. Every brand key, the builder's and
+    # the model's alike, comes through here, so they all agree.
+    INVISIBLE = /\p{Cf}/
+
     def self.fold(text)
-      text.to_s.scrub("").unicode_normalize(:nfkd).gsub(ACCENTS, "").unicode_normalize(:nfc)
-          .downcase.gsub(/\s+/, " ").strip
+      text.to_s.scrub("").unicode_normalize(:nfkd).gsub(ACCENTS, "").gsub(INVISIBLE, "")
+          .unicode_normalize(:nfc).downcase.gsub(/[[:space:]]+/, " ").strip
     end
 
     # The words of a text, folded: what a search for "antar orig" matches

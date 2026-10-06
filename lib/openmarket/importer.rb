@@ -74,7 +74,8 @@ module Openmarket
 
       found = @brands.named(name)
       if found
-        found.update(attrs) if update && !attrs.empty?
+        known = attrs.compact # a record silent on a field leaves the brand's own
+        found.update(known) if update && !known.empty?
       else
         found = @brands.new(attrs.merge(name: name.to_s.strip))
         unless found.save

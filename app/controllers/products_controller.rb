@@ -31,8 +31,9 @@ class ProductsController < ApplicationController
 
   # GET /products/new
   def new
-    @product = TYPES.fetch(params[:type].to_s, Product).new
-    @product.type = params[:type] if TYPES.key?(params[:type])
+    klass = TYPES[params[:type].to_s.camelize] # "drink", as the JSON says it, or "Drink"
+    @product = (klass || Product).new
+    @product.type = klass.name if klass
   end
 
   # GET /products/1/edit
@@ -41,9 +42,9 @@ class ProductsController < ApplicationController
 
   # POST /products or /products.json
   def create
-    product_class = TYPES.fetch(product_params[:type].to_s, Product)
-    @product = product_class.new(product_params.except(:type))
-    @product.type = product_params[:type] if TYPES.key?(product_params[:type])
+    product_class = TYPES[product_params[:type].to_s.camelize]
+    @product = (product_class || Product).new(product_params.except(:type))
+    @product.type = product_class.name if product_class
 
     respond_to do |format|
       if @product.save

@@ -16,6 +16,7 @@ class Brand
   field :site,     type: String
   field :logo,     type: String # a URL
   field :source,   type: String # "off", "wikidata"; nil when typed by hand
+  field :aliases,  type: Array, default: [] # the keys of names it had: imports still spell it the old way
 
   # A brand with products stays: one slip of a button would leave them all
   # without one. Move them to another brand first.
@@ -27,6 +28,14 @@ class Brand
   validates :key, uniqueness: true, allow_nil: true # "Antártica" is taken when "Antartica" is
 
   before_validation { self.key = self.class.key_for(name) }
+  # Renamed — "Antartica" corrected to "Antarctica" — the brand is still what
+  # the next import calls "Antartica": the old key stays as an alias, so the
+  # import finds this brand instead of making the misspelling again.
+  before_update do
+    if key_changed? && key_was.present?
+      self.aliases = ((aliases || []) | [ key_was ]) - [ key ]
+    end
+  end
   before_validation { self.country = country&.upcase } # "br" typed is "BR", as ISO and Wikidata write it
 
   # A product's search words hold its brand's (Product#tokens). Renamed to
@@ -40,6 +49,7 @@ class Brand
   index({ key: 1 }, { unique: true, sparse: true })
   index({ name: 1 })
   index({ wikidata: 1 }, { sparse: true })
+  index({ aliases: 1 })
 
   # A name as the brand stores it, nil for blank. strip_attributes also takes
   # a pasted BOM or zero-width space off the ends, which `squish` and `fold`
@@ -68,7 +78,7 @@ class Brand
   # Either way it is the brand a save of that name would clash with.
   def self.named(name)
     key = key_for(name) or return
-    where(key: key).first || where(name: clean(name)).first
+    where(key: key).first || where(aliases: key).first || where(name: clean(name)).first
   end
 
   # What someone typing a brand wants: the brands whose name starts with it,

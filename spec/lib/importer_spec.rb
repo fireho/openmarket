@@ -158,6 +158,19 @@ RSpec.describe Openmarket::Importer do
   end
 
   describe "#brand" do
+    it "never blanks what a record does not say, even when told to rewrite" do
+      importer.brand("Ambev", country: "BR", site: "https://ambev.com.br")
+      importer.brand("Ambev", update: true, country: nil, site: "https://www.ambev.com.br", info: nil)
+
+      expect(Fake::Brand.named("Ambev")).to have_attributes(country: "BR", site: "https://www.ambev.com.br")
+    end
+
+    it "takes a pasted zero-width space or BOM for no part of the name" do
+      first = importer.brand("Brahma")
+      expect(importer.brand("BRAHMA\u200B")).to equal(first)
+      expect(importer.brand("\uFEFFbrahma")).to equal(first)
+    end
+
     it "starts a new brand with what it is given" do
       brand = importer.brand("Ambev", info: "Brewer", country: "BR")
 

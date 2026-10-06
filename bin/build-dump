@@ -55,6 +55,12 @@ Openmarket::OpenFoodFacts.each(source, countries: countries, limit: options[:lim
   warn "#{read} drinks read" if (read % 50_000).zero?
 end
 
+# A gzip that ends before its input does — a second member, a cut stream —
+# would be a quiet partial world. Without a limit every byte must be read.
+if options[:off] == "-" && !options[:limit] && (source.unused || !$stdin.eof?)
+  abort "The gzip on stdin ended before its input did (several members?): nothing written"
+end
+
 # A brand Wikidata could not tell us about is still a brand: a fetch that fails
 # costs the enrichment, never the dump.
 if options[:wikidata]

@@ -92,6 +92,13 @@ RSpec.describe "/products", type: :request do
       expect(response).to be_successful
     end
 
+    it "takes the type as the JSON writes it" do
+      post products_url(format: :json), params: { product: { type: "drink", name: "Brahma", kind: "beer", size: 350 } }
+
+      expect(response).to have_http_status(:created)
+      expect(Product.last).to be_a(Drink)
+    end
+
     it "renders a successful response with type=Food" do
       get new_product_url(type: 'Food')
       expect(response).to be_successful
