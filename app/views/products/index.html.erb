@@ -1,6 +1,6 @@
 <% content_for :title, "Products" %>
 <div class="w-full">
-  <div class="flex justify-between products-center">
+  <div class="flex justify-between items-center">
     <h1 class="font-bold text-4xl">
       <%= icon("products", size: 42) %>
       Itens
@@ -8,6 +8,7 @@
     <div class="flex space-x-2">
       <%= link_to "Nova Bebida", new_product_path(type: 'Drink'), class: "btn btn-primary", data: { turbo_frame: "modal" } %>
       <%= link_to "Nova Comida", new_product_path(type: 'Food'), class: "btn btn-secondary", data: { turbo_frame: "modal" } %>
+      <%= link_to "Marcas", brands_path, class: "btn btn-outline" %>
     </div>
   </div>
   <%= form_with url: products_path, method: :get, class: "mb-4" do |form| %>
@@ -19,9 +20,12 @@
   <div id="products" class="min-w-full divide-y divide-gray-200 space-y-5">
     <% if @products.any? %>
       <% @products.each do |product| %>
-        <div class="flex flex-col sm:flex-row justify-between products-center pb-5 sm:pb-0">
-          <div id="<%= dom_id product %>" class="w-full sm:w-auto my-5">
-            <div class="flex flex-wrap products-baseline justify-between gap-y-2">
+        <div class="flex flex-col sm:flex-row justify-between items-center pb-5 sm:pb-0">
+          <div id="<%= dom_id product %>" class="w-full sm:w-auto my-5 flex items-center gap-x-4">
+            <% if product.image.present? %>
+              <%= tag.img src: product.image, alt: "", loading: "lazy", class: "w-12 h-12 object-contain" %>
+            <% end %>
+            <div class="flex flex-wrap items-baseline justify-between gap-y-2">
               <div>
                 <h2 class="font-bold text-2xl">
                   <%= link_to product.name, product %>
@@ -32,7 +36,7 @@
                   <%= product.brand.name if product.brand %>
                 </small>
               </div>
-              <div class="flex products-baseline gap-x-4">
+              <div class="flex items-baseline gap-x-4">
                 <% if product.respond_to?(:pack_name) %>
                   <span><%= product.pack_name %></span>
                 <% end %>

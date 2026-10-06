@@ -17,6 +17,9 @@
     <%= link_to "Editar", edit_product_path(@product), class: "btn btn-outline" %>
   </div>
   <div id="<%= dom_id @product %>" class="w-full sm:w-auto my-5 space-y-5">
+    <% if @product.image.present? %>
+      <%= tag.img src: @product.image, alt: @product.name, class: "max-h-64 object-contain" %>
+    <% end %>
     <div>
       <strong class="block font-medium mb-1">Nome:</strong>
       <%= @product.name %>
@@ -29,8 +32,14 @@
     <% end %>
     <div>
       <strong class="block font-medium mb-1">Marca:</strong>
-      <%= @product.brand&.name || 'Não informada' %>
+      <%= @product.brand ? link_to(@product.brand.name, @product.brand) : "Não informada" %>
     </div>
+    <% if @product.quantity.present? %>
+      <div>
+        <strong class="block font-medium mb-1"><%= Product.human_attribute_name(:quantity) %>:</strong>
+        <%= @product.quantity %>
+      </div>
+    <% end %>
     <% if @product.respond_to?(:kind_name) %>
       <div>
         <strong class="block font-medium mb-1">Tipo:</strong>

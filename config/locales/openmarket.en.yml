@@ -20,6 +20,7 @@ en:
         code: EAN code
         sku: SKU
         brand: Brand
+        brand_name: Brand
         org: Org
         uses: Uses
         image: Image
@@ -36,6 +37,8 @@ en:
         site: Website
         logo: Logo
         source: Source
+        key: Name in any spelling
+        products: Products
       drink:
         kind: Kind
         pack: Pack
@@ -77,3 +80,9 @@ en:
           dessert: Dessert
           snack: Snack
           meat: Meat
+    errors:
+      models:
+        brand:
+          attributes:
+            products:
+              destroy_restrict_with_error_dependencies_exist: "are still filed under this brand: move them to another one first"

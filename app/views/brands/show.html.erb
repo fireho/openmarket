@@ -1,0 +1,68 @@
+<% content_for :title, @brand.name %>
+<div class="w-full">
+  <h1 class="font-bold text-4xl flex items-center gap-x-3">
+    <% if @brand.logo.present? %>
+      <%= tag.img src: @brand.logo, alt: "", class: "h-12 object-contain" %>
+    <% end %>
+    <%= @brand.name %>
+  </h1>
+  <div class="flex space-x-2 my-4">
+    <%= link_to "Nova Marca", new_brand_path, class: "btn btn-primary" %>
+    <%= link_to "Editar", edit_brand_path(@brand), class: "btn btn-outline" %>
+  </div>
+  <div id="<%= dom_id @brand %>" class="w-full sm:w-auto my-5 space-y-5">
+    <% if @brand.info.present? %>
+      <div>
+        <strong class="block font-medium mb-1"><%= Brand.human_attribute_name(:info) %>:</strong>
+        <%= @brand.info %>
+      </div>
+    <% end %>
+    <% if @brand.country.present? %>
+      <div>
+        <strong class="block font-medium mb-1"><%= Brand.human_attribute_name(:country) %>:</strong>
+        <%= @brand.country %>
+      </div>
+    <% end %>
+    <% if @brand.site.present? %>
+      <div>
+        <strong class="block font-medium mb-1"><%= Brand.human_attribute_name(:site) %>:</strong>
+        <%# Only a web address is a link: a "javascript:" one from a dump would run here. %>
+        <% if @brand.site.start_with?("https://", "http://") %>
+          <%= link_to @brand.site, @brand.site, target: "_blank", rel: "noopener noreferrer" %>
+        <% else %>
+          <%= @brand.site %>
+        <% end %>
+      </div>
+    <% end %>
+    <% if @brand.wikidata.present? %>
+      <div>
+        <strong class="block font-medium mb-1"><%= Brand.human_attribute_name(:wikidata) %>:</strong>
+        <%= link_to @brand.wikidata, "https://www.wikidata.org/wiki/#{ERB::Util.url_encode(@brand.wikidata)}", target: "_blank", rel: "noopener noreferrer" %>
+      </div>
+    <% end %>
+    <% if @brand.source.present? %>
+      <div>
+        <strong class="block font-medium mb-1"><%= Brand.human_attribute_name(:source) %>:</strong>
+        <%= @brand.source %>
+      </div>
+    <% end %>
+  </div>
+  <div class="my-5">
+    <h2 class="font-bold text-2xl"><%= Brand.human_attribute_name(:products) %>: <%= @pagy.count %></h2>
+    <ul class="my-2 space-y-1">
+      <% @products.each do |product| %>
+        <li>
+          <%# product_path, not the product: a Drink would ask for a drink_path. %>
+          <%= link_to product.name, product_path(product) %>
+          <small class="text-gray-500"><%= product.code %></small>
+        </li>
+      <% end %>
+    </ul>
+    <%== pagy_nav(@pagy) if defined?(pagy_nav) %>
+  </div>
+  <%= link_to "Voltar", brands_path, class: "btn btn-secondary" %>
+  <%# A brand with products is not destroyed (see Brand), so it offers no button. %>
+  <% if @pagy.count.zero? %>
+    <%= button_to "Excluir", @brand, method: :delete, class: "btn btn-danger", form: { class: "inline", data: { turbo_confirm: "Tem certeza?" } } %>
+  <% end %>
+</div>

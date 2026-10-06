@@ -6,6 +6,12 @@ Openmarket::Engine.routes.draw do
     end
   end
 
+  resources :brands do
+    collection do
+      get :search
+    end
+  end
+
   root 'products#index'
 
   # Legacy drink routes for backward compatibility (optional)

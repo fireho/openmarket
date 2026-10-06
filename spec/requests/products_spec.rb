@@ -135,6 +135,31 @@ RSpec.describe "/products", type: :request do
       end
     end
 
+    context "with a brand typed by name" do
+      it "files the product under it, making the brand when it is new" do
+        expect {
+          post products_url, params: { product: { type: "Drink", name: "Brahma Duplo Malte", brand_name: "Brahma" } }
+        }.to change(Brand, :count).by(1)
+        expect(Product.last.brand.name).to eq("Brahma")
+      end
+
+      it "finds a brand that is there, however it was typed" do
+        brand = Brand.create!(name: "Antártica")
+        post products_url, params: { product: { type: "Drink", name: "Antarctica Original", brand_name: "antartica" } }
+
+        expect(Product.last.brand).to eq(brand)
+      end
+
+      it "finds it behind what a paste brings along: a BOM, a zero-width space" do
+        brand = Brand.create!(name: "Brahma")
+        post products_url, params: { product: { type: "Drink", name: "Brahma Chopp", brand_name: "\uFEFFBrahma\u200B" } }
+
+        expect(response).to redirect_to(product_url(Product.last))
+        expect(Product.last.brand).to eq(brand)
+        expect(Brand.count).to eq(1)
+      end
+    end
+
     context "with invalid parameters" do
       it "does not create a new Product" do
         expect {
