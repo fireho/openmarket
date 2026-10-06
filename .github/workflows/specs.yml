@@ -1,0 +1,19 @@
+# The plain-Ruby specs: no Mongo and no Enumere needed, so they run anywhere.
+name: specs
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lib:
+    runs-on: ubuntu-latest
+    env:
+      LANG: C.UTF-8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - run: bin/rspec spec/lib
