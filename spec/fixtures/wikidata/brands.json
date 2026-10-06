@@ -1,0 +1,73 @@
+{
+  "_comment": "ILLUSTRATIVE ONLY. Hand-written in the shape of a query.wikidata.org SPARQL JSON answer to Openmarket::Wikidata.query. The brands, QIDs (Q9000000xx), sites (.example) and logo files are made up: none of it is a claim about the real Wikidata.",
+  "head": { "vars": [ "item", "label", "country", "iso", "site", "logo" ] },
+  "results": {
+    "bindings": [
+      {
+        "item": { "type": "uri", "value": "http://www.wikidata.org/entity/Q900000001" },
+        "label": { "type": "literal", "xml:lang": "en", "value": "Acme Cola" },
+        "country": { "type": "uri", "value": "http://www.wikidata.org/entity/Q900000101" },
+        "iso": { "type": "literal", "value": "us" },
+        "site": { "type": "uri", "value": "https://acme-cola.example.com/" },
+        "logo": { "type": "uri", "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Acme%20Cola%20logo.svg" }
+      },
+      {
+        "item": { "type": "uri", "value": "http://www.wikidata.org/entity/Q900000001" },
+        "label": { "type": "literal", "xml:lang": "pt", "value": "Acme Cola" },
+        "country": { "type": "uri", "value": "http://www.wikidata.org/entity/Q900000101" },
+        "iso": { "type": "literal", "value": "us" },
+        "site": { "type": "uri", "value": "https://acme-cola.example.com/" },
+        "logo": { "type": "uri", "value": "http://commons.wikimedia.org/wiki/Special:FilePath/Acme%20Cola%20logo.svg" }
+      },
+      {
+        "item": { "type": "uri", "value": "http://www.wikidata.org/entity/Q900000002" },
+        "label": { "type": "literal", "xml:lang": "pt", "value": "Cerveja Exemplo" },
+        "country": { "type": "uri", "value": "http://www.wikidata.org/entity/Q900000102" },
+        "iso": { "type": "literal", "value": "BR" },
+        "site": { "type": "uri", "value": "http://cerveja-exemplo.example/" }
+      },
+      {
+        "item": { "type": "uri", "value": "http://www.wikidata.org/entity/Q900000002" },
+        "label": { "type": "literal", "xml:lang": "pt", "value": "Cerveja Exemplo" },
+        "country": { "type": "uri", "value": "http://www.wikidata.org/entity/Q900000102" },
+        "iso": { "type": "literal", "value": "BR" },
+        "site": { "type": "uri", "value": "https://cerveja-exemplo.example/" }
+      },
+      {
+        "item": { "type": "uri", "value": "http://www.wikidata.org/entity/Q900000003" },
+        "label": { "type": "literal", "xml:lang": "pt", "value": "Água Modelo" },
+        "country": { "type": "uri", "value": "http://www.wikidata.org/entity/Q900000102" },
+        "iso": { "type": "literal", "value": "BR" },
+        "site": { "type": "uri", "value": "ftp://agua-modelo.example/" },
+        "logo": { "type": "uri", "value": "javascript:alert(1)" }
+      },
+      {
+        "item": { "type": "uri", "value": "http://www.wikidata.org/entity/Q900000003" },
+        "label": { "type": "literal", "xml:lang": "pt", "value": "Água Modelo" },
+        "country": { "type": "uri", "value": "http://www.wikidata.org/entity/Q900000103" },
+        "iso": { "type": "literal", "value": "PT" },
+        "site": { "type": "uri", "value": "ftp://agua-modelo.example/" },
+        "logo": { "type": "uri", "value": "javascript:alert(1)" }
+      },
+      {
+        "item": { "type": "uri", "value": "http://www.wikidata.org/entity/Q900000004" },
+        "label": { "type": "literal", "xml:lang": "en", "value": "Polaris" }
+      },
+      {
+        "item": { "type": "uri", "value": "http://www.wikidata.org/entity/Q900000005" },
+        "label": { "type": "literal", "xml:lang": "es", "value": "Polaris" },
+        "site": { "type": "uri", "value": "https://polaris.example/" }
+      },
+      {
+        "item": { "type": "uri", "value": "http://www.wikidata.org/entity/Q900000006" },
+        "label": { "type": "literal", "xml:lang": "pt", "value": "Gin Amostra" },
+        "country": { "type": "uri", "value": "http://www.wikidata.org/entity/Q900000104" },
+        "site": { "type": "uri", "value": "http://gin-amostra.example/" }
+      },
+      {
+        "item": { "type": "bnode", "value": "b0" },
+        "label": { "type": "literal", "xml:lang": "en", "value": "Nobody" }
+      }
+    ]
+  }
+}
