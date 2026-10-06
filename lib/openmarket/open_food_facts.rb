@@ -253,9 +253,11 @@ module Openmarket
       code.match(/\A(.{3})(.{3})(.{3})(.*)\z/).captures.join("/")
     end
 
-    # "en:brazil" => "brazil"
+    # "en:brazil" => "brazil". Only the taxonomy's own ids: a tag OFF could
+    # not place keeps its contributor's language ("fr:France - La Réunion",
+    # "es:Mundial") and is no country or category anyone can rely on.
     def slugs(tags)
-      Array(tags).map { |tag| tag.to_s.sub(/\A[a-z]{2,3}:/, "") }.reject(&:empty?)
+      Array(tags).filter_map { |tag| tag.to_s.delete_prefix("en:") if tag.to_s.start_with?("en:") }.reject(&:empty?)
     end
 
     # The first number in a value: 4.8, "4,8", "5 % vol". nil for none, or for

@@ -36,6 +36,12 @@ RSpec.describe Openmarket::OpenFoodFacts do
       expect(entry[:attrs][:info_translations]).to eq("pt" => "Cerveja pilsen")
     end
 
+    it "keeps only the taxonomy's own countries and categories" do
+      row = brahma.merge("countries_tags" => %w[ en:brazil fr:France\ -\ La\ Réunion es:mundial ],
+                         "categories_tags" => %w[ en:beverages en:beers fr:bieres-artisanales ])
+      expect(described_class.map(row)[:attrs]).to include(countries: %w[ brazil ], tags: %w[ beverages beers ])
+    end
+
     it "keeps the categories as slugs" do
       expect(entry[:attrs][:tags]).to eq(%w[ beverages alcoholic-beverages beers lagers ])
     end
