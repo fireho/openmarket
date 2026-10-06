@@ -42,7 +42,7 @@ module Openmarket
       [ :mixed,   %w[ en:premixed-alcoholic-beverages en:hard-seltzers ] ],
       [ :cider,   %w[ en:ciders en:non-alcoholic-ciders ] ],
       [ :wine,    %w[ en:wines en:wine-based-drinks en:non-alcoholic-wines ] ],
-      [ :soda,    %w[ en:root-beers en:ginger-beer ] ],
+      [ :soda,    %w[ en:root-beers en:ginger-beer en:tonic-water ] ],
       [ :beer,    %w[ en:beers en:non-alcoholic-beers ] ],
       [ :liquor,  %w[ en:liqueurs en:hard-liquors en:distilled-beverages ] ],
       [ :energy,  %w[ en:energy-drinks ] ],
@@ -56,6 +56,12 @@ module Openmarket
     # unknown — unless the row also says it is alcoholic. For the rest, no ABV
     # means we do not know.
     SOFT = %i[ water soda juice energy tea ].freeze
+    SPIRITS = %i[ cachaca tequila vodka gin rum whisky cognac ].freeze
+
+    # People type labels, and some numbers contradict the rest of the row. The
+    # most ABV each kind can have: above it, the number is unknown, not a fact
+    # (a 3% Coca-Cola, a 24.5% IPA, a 24% mineral water are typos).
+    MAX_ACL = { beer: 20, wine: 25, cider: 15 }.merge(SOFT.to_h { |kind| [ kind, 1.2 ] }).freeze
 
     # packaging_tags mixes shapes and materials.
     CANS    = %w[ en:can en:drink-can en:aluminium-can en:metal-can en:steel-can ].freeze
@@ -70,18 +76,21 @@ module Openmarket
       "l" => 1000, "lt" => 1000, "lts" => 1000,
       "litre" => 1000, "litres" => 1000, "liter" => 1000, "liters" => 1000,
       "litro" => 1000, "litros" => 1000,
-      "oz" => 29.5735, "floz" => 29.5735
+      "oz" => 29.5735, "floz" => 29.5735,
+      "gal" => 3785.41, "gallon" => 3785.41, "gallons" => 3785.41, "qt" => 946.353, "quart" => 946.353, "quarts" => 946.353
     }.freeze
 
     # A number no digit, slash, separator or exponent runs into: "1/2 L" is no "2 L".
     # (Each piece carries its own /i: an interpolated regexp keeps its own flags.)
     AMOUNT = %r{(?<![\d/.,eE])(\d+(?:[.,]\d+)?)}
-    UNIT   = /(ml|cl|dl|litres?|liters?|litros?|lts?|l|fl\.?\s*oz|oz)\b/i
+    UNIT   = /(ml|cl|dl|litres?|liters?|litros?|lts?|l|fl\.?\s*oz|oz|gal(?:lons?)?|qt|quarts?)\b/i
     VOLUME = /#{AMOUNT}\s*#{UNIT}/i
     # "6 x 330 ml", "6 latas de 350 ml", "Pack 12 un 350ml"; and "330 ml x 6".
     UNITS_WORD = /x|×|\*|latas?|latinhas?|garrafas?|cans?|bottles?|bouteilles?|botellas?|un\.?|unidades?|units?/i
     COUNT_FIRST = /(?<![\d.,])(\d+)\s*(?:#{UNITS_WORD})\s*(?:de\s+|of\s+)?#{VOLUME}/i
     COUNT_AFTER = /#{VOLUME}\s*[x×*]\s*(\d+)\b/i
+    # Below a miniature's 20 ml a drink's size is a typo: "0,33 cl" for 0,33 l.
+    MIN_ML = 20
     MAX_ML = 30_000
 
     module_function
@@ -92,6 +101,7 @@ module Openmarket
       return unless tags.intersect?(ROOTS)
 
       kind = kind(tags) or return
+      kind, acl = plausible(kind, acl(row, kind, tags))
       name = translations(row, "product_name")
       return if name.empty?
 
@@ -103,8 +113,8 @@ module Openmarket
         name_translations: name,
         kind: kind,
         pack: pack(row, name, count),
-        size: ml&.round&.then { |n| n if n.between?(1, MAX_ML) },
-        acl: acl(row, kind, tags),
+        size: ml&.round&.then { |n| n if n.between?(MIN_ML, MAX_ML) },
+        acl: acl,
         image: image(row),
         quantity: row["quantity"].to_s.strip.then { |q| q unless q.empty? },
         countries: slugs(row["countries_tags"]),
@@ -126,6 +136,16 @@ module Openmarket
     def kind(tags)
       kind = KINDS.find { |_, wanted| tags.intersect?(wanted) }&.first
       SOFT.include?(kind) && tags.include?(ALCOHOLIC) ? :mixed : kind
+    end
+
+    # A spirit under 15% is a ready-to-drink (a Suntory Highball, a vodka
+    # seltzer: spirits start at 15%). An ABV past what the kind can hold is
+    # dropped, the kind kept.
+    def plausible(kind, acl)
+      return [ :mixed, acl ] if SPIRITS.include?(kind) && acl && acl > 0.5 && acl < 15
+      return [ kind, nil ] if acl && MAX_ACL[kind] && acl > MAX_ACL[kind]
+
+      [ kind, acl ]
     end
 
     # { "pt" => "Cerveja Brahma" } — the main name under the row's language,

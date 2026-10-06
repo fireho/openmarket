@@ -121,6 +121,27 @@ RSpec.describe Openmarket::OpenFoodFacts do
         expect(described_class.map(row)[:attrs][:acl]).to eq(5.0)
       end
 
+      describe "that the rest of the row contradicts" do
+        def mapped(tags, abv) = described_class.map(brahma.merge("categories_tags" => [ "en:beverages", *tags ], "nutriments" => { "alcohol_100g" => abv }))[:attrs]
+
+        it "files a spirit under 15% as a ready-to-drink" do
+          expect(mapped(%w[ en:alcoholic-beverages en:whisky ], 9)).to include(kind: :mixed, acl: 9.0)
+          expect(mapped(%w[ en:alcoholic-beverages en:vodka ], 40)).to include(kind: :vodka, acl: 40.0)
+        end
+
+        it "drops an ABV the kind cannot have" do
+          expect(mapped(%w[ en:carbonated-drinks en:sodas ], 3)).to include(kind: :soda, acl: nil)
+          expect(mapped(%w[ en:waters ], 24.2)).to include(kind: :water, acl: nil)
+          expect(mapped(%w[ en:alcoholic-beverages en:beers ], 24.5)).to include(kind: :beer, acl: nil)
+          expect(mapped(%w[ en:alcoholic-beverages en:wines ], 40)).to include(kind: :wine, acl: nil)
+        end
+
+        it "keeps a strong beer and a strong liqueur" do
+          expect(mapped(%w[ en:alcoholic-beverages en:beers ], 11)).to include(acl: 11.0)
+          expect(mapped(%w[ en:alcoholic-beverages en:liqueurs ], 52)).to include(acl: 52.0)
+        end
+      end
+
       it "ignores nonsense" do
         row = brahma.merge("nutriments" => { "alcohol_100g" => 480 })
         expect(described_class.map(row)[:attrs][:acl]).to be_nil
@@ -129,7 +150,7 @@ RSpec.describe Openmarket::OpenFoodFacts do
 
     describe "kind" do
       def kind_of(*tags)
-        described_class.map(brahma.merge("categories_tags" => [ "en:beverages", *tags ]))&.dig(:attrs, :kind)
+        described_class.map(brahma.merge("categories_tags" => [ "en:beverages", *tags ], "nutriments" => {}))&.dig(:attrs, :kind)
       end
 
       # Tag sets as OFF writes them: every ancestor of the category is there.
@@ -154,6 +175,10 @@ RSpec.describe Openmarket::OpenFoodFacts do
 
       it "files a sparkling water as water, not soda" do
         expect(kind_of("en:carbonated-drinks", "en:waters", "en:mineral-waters", "en:carbonated-waters")).to eq(:water)
+      end
+
+      it "files a tonic as a soda, even tagged as a water" do
+        expect(kind_of("en:waters", "en:carbonated-drinks", "en:sodas", "en:tonic-water")).to eq(:soda)
       end
 
       it "files a ginger beer as a soda, not a beer" do
@@ -237,6 +262,16 @@ RSpec.describe Openmarket::OpenFoodFacts do
 
     it "takes no infinite bottle" do
       expect(described_class.volume("", "1e400", "ml")).to eq([ nil, 1 ])
+    end
+
+    it "reads gallons and quarts" do
+      expect(described_class.volume("4 x 1 Gallon").then { |ml, count| [ ml.round, count ] }).to eq([ 3785, 4 ])
+      expect(described_class.volume("2 qt").first.round).to eq(1893)
+    end
+
+    it "takes no size from a typo below a miniature" do
+      row = brahma.merge("quantity" => "0,33 cl", "product_quantity" => nil)
+      expect(described_class.map(row)[:attrs][:size]).to be_nil
     end
 
     it "reads fluid ounces" do

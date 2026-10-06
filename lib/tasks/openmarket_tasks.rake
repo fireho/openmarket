@@ -44,9 +44,19 @@ namespace :openmarket do
     puts "Wrote #{Openmarket::Catalogue.dump(path)} records to #{path}"
   end
 
-  desc "Load a dump into the shared catalogue. FILE=path|url (default: the latest GitHub release) OVERWRITE=1 to replace rows already there"
+  desc "Load a dump into the shared catalogue. FILE=path|url (default: the latest GitHub release, else the snapshot in the gem) OVERWRITE=1 to replace rows already there"
   task restore: :environment do
-    path = openmarket_file(ENV["FILE"], default_url: release)
+    path =
+      begin
+        openmarket_file(ENV["FILE"], default_url: release)
+      rescue StandardError => e
+        # Asked for nothing in particular and the release is out of reach (no
+        # network, or no release yet): the gem carries a snapshot of its own.
+        raise if ENV["FILE"].present?
+
+        warn "No release to download (#{e.message}): loading the snapshot in the gem"
+        Openmarket::SNAPSHOT
+      end
     openmarket_indexes
     stats = Openmarket::Catalogue.restore(path, overwrite: ENV["OVERWRITE"].present?, progress: openmarket_progress("restore"))
     puts "Done: #{openmarket_counts(stats)}"
