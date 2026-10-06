@@ -10,7 +10,7 @@
 
 ## Ship it
 
-- [ ] TODO merge to main: the monthly dump only runs on the default branch, then one workflow_dispatch .github/workflows/dump.yml:9
+- [ ] TODO first dump release: run dump.yml once by hand (workflow_dispatch), then it runs monthly from main .github/workflows/dump.yml:9
 - [ ] TODO first CI dump runs `--wikidata` (blocked here): check brands get country, site, logo .github/workflows/dump.yml:1
 - [ ] TODO the 4.5 MB snapshot in git grows the history every refresh: release asset only, or one commit per year db/openmarket.ndjson.gz
 - [ ] TODO name the image license: Open Food Facts pictures are CC BY-SA 3.0 README.md:256
