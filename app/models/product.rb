@@ -78,14 +78,14 @@ class Product
   def name = super.presence || name_translations&.values&.find(&:present?)
 
   # The brand as a form writes it: a name. Found however it was cased or
-  # accented, made when nobody has it yet; blank takes the brand off. A new
-  # brand is saved even if the product then is not: it is a real name someone
-  # typed, and the next try finds it.
+  # accented, made when nobody has it yet; blank (or only invisible characters)
+  # takes the brand off. A new brand is saved even if the product then is not:
+  # it is a real name someone typed, and the next try finds it.
   def brand_name = brand&.name
 
   def brand_name=(name)
     name = name.to_s.squish
-    self.brand = name.empty? ? nil : Brand.named(name) || Brand.create!(name: name)
+    self.brand = Brand.key_for(name) && (Brand.named(name) || new_brand(name))
   end
 
   # The scan: a barcode in any spelling — UPC-A, EAN-13, with spaces — and the
@@ -134,5 +134,17 @@ class Product
 
       !(was.nil? && now == self.class.fields[field]&.default_val)
     end
+  end
+
+  private
+
+  # Two people adding one new brand at once: the second save is refused, by
+  # the uniqueness check or, when they truly overlap, by the unique key index.
+  # The brand the first one saved is the second one's too. A refusal with no
+  # such brand is something else, and is raised.
+  def new_brand(name)
+    Brand.create!(name: name)
+  rescue Mongoid::Errors::Validations, Mongo::Error::OperationFailure
+    Brand.named(name) or raise
   end
 end

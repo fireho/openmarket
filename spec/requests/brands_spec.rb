@@ -155,6 +155,14 @@ RSpec.describe "/brands", type: :request do
         patch brand_url(brand), params: { brand: { name: "Cervejaria Nova" } }
         expect(response).to redirect_to(brand_url(brand))
       end
+
+      it "takes the brand's products along: a search finds them by the new name" do
+        brand = Brand.create!(name: "Antartica")
+        product = Product.create!(name: "Original", brand: brand)
+        patch brand_url(brand), params: { brand: { name: "Antarctica" } }
+
+        expect(product.reload.tokens).to contain_exactly("original", "antarctica")
+      end
     end
 
     context "with invalid parameters" do

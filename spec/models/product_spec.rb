@@ -132,6 +132,47 @@ RSpec.describe Product, type: :model do
       expect(product.reload.brand).to be_nil
     end
 
+    it "finds the brand behind what a paste brings along: a BOM, a zero-width space" do
+      brand = Brand.create!(name: "Brahma")
+
+      expect { Product.new(brand_name: "\uFEFFBrahma\u200B") }.not_to change(Brand, :count)
+      expect(Product.new(brand_name: "Brahma\u200B").brand).to eq(brand)
+      expect(Product.new(brand_name: "\u200B").brand).to be_nil # nothing a brand could be named
+    end
+
+    it "finds a new brand pasted with a BOM the second time" do
+      first = Product.new(brand_name: "\uFEFFCervejaria Nova").brand
+
+      expect { Product.new(brand_name: "\uFEFFCervejaria Nova") }.not_to change(Brand, :count)
+      expect(Product.new(brand_name: "\uFEFFCervejaria Nova").brand).to eq(first)
+      expect(first.name).to eq("Cervejaria Nova")
+    end
+
+    context "when someone saves the same new brand a moment before" do
+      let!(:theirs) { Brand.create!(name: "Cervejaria Nova") }
+
+      before do # the look comes before theirs is saved
+        looks = 0
+        allow(Brand).to receive(:named).and_wrap_original { |named, name| (looks += 1) == 1 ? nil : named.call(name) }
+      end
+
+      it "takes theirs when the uniqueness check refuses the second" do
+        expect(Product.new(brand_name: "Cervejaria Nova").brand).to eq(theirs)
+      end
+
+      it "takes theirs when the unique index refuses it" do
+        allow(Brand).to receive(:create!).and_raise(Mongo::Error::OperationFailure, "E11000 duplicate key error")
+
+        expect(Product.new(brand_name: "Cervejaria Nova").brand).to eq(theirs)
+      end
+    end
+
+    it "raises a refusal that no saved brand explains" do
+      allow(Brand).to receive(:create!).and_raise(Mongo::Error::OperationFailure, "not primary")
+
+      expect { Product.new(brand_name: "Cervejaria Nova") }.to raise_error(Mongo::Error::OperationFailure)
+    end
+
     it "is an edit like any other, so an import leaves the row alone" do
       imported = Product.new(name: "Brahma", code: "7891991010023", source: "off")
       imported.importing = true

@@ -149,6 +149,15 @@ RSpec.describe "/products", type: :request do
 
         expect(Product.last.brand).to eq(brand)
       end
+
+      it "finds it behind what a paste brings along: a BOM, a zero-width space" do
+        brand = Brand.create!(name: "Brahma")
+        post products_url, params: { product: { type: "Drink", name: "Brahma Chopp", brand_name: "\uFEFFBrahma\u200B" } }
+
+        expect(response).to redirect_to(product_url(Product.last))
+        expect(Product.last.brand).to eq(brand)
+        expect(Brand.count).to eq(1)
+      end
     end
 
     context "with invalid parameters" do

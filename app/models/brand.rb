@@ -29,11 +29,26 @@ class Brand
   before_validation { self.key = self.class.key_for(name) }
   before_validation { self.country = country&.upcase } # "br" typed is "BR", as ISO and Wikidata write it
 
+  # A product's search words hold its brand's (Product#tokens). Renamed to
+  # another key, the brand takes its products' words along: written straight,
+  # as `backfill_tokens` does, so it is no edit of theirs and imports still
+  # refresh them. Only the key matters: "BRAHMA" to "Brahma" folds the same.
+  after_update do
+    products.each { |product| product.set(tokens: product.tokenize) } if saved_change_to_attribute?(:key)
+  end
+
   index({ key: 1 }, { unique: true, sparse: true })
   index({ name: 1 })
   index({ wikidata: 1 }, { sparse: true })
 
-  def self.key_for(name) = Openmarket::Text.fold(name).presence
+  # A name as the brand stores it, nil for blank. strip_attributes also takes
+  # a pasted BOM or zero-width space off the ends, which `squish` and `fold`
+  # keep: looked up with them, "Brahma\u200B" misses the "Brahma" it then
+  # clashes with on save. Scrubbed first, as `fold` does: a bad byte would
+  # raise in strip_attributes.
+  def self.clean(name) = StripAttributes.strip(name.to_s.scrub(""))
+
+  def self.key_for(name) = Openmarket::Text.fold(clean(name)).presence
 
   # Brands made before `key` existed get theirs. Two spellings of one name
   # cannot both have it: the later ones are returned, for a person to merge.
@@ -50,9 +65,10 @@ class Brand
 
   # The brand a written name means, in whatever case and accents it came in.
   # Brands made before `key` existed have none, so the exact name is the second try.
+  # Either way it is the brand a save of that name would clash with.
   def self.named(name)
     key = key_for(name) or return
-    where(key: key).first || where(name: name.to_s.strip).first
+    where(key: key).first || where(name: clean(name)).first
   end
 
   # What someone typing a brand wants: the brands whose name starts with it,

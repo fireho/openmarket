@@ -34,6 +34,11 @@ RSpec.describe Brand, type: :model do
       expect(Brand.named(" ANTÁRTICA ")).to eq(brand)
     end
 
+    it "finds a brand behind what a paste brings along: a BOM, a zero-width space" do
+      expect(Brand.named("\uFEFFAntártica\u200B")).to eq(brand)
+      expect(Brand.named("\u200B")).to be_nil
+    end
+
     it "finds a brand made before keys existed, by its exact name" do
       old = Brand.new(name: "Skol")
       old.collection.insert_one(old.as_document.except("key"))
@@ -80,6 +85,20 @@ RSpec.describe Brand, type: :model do
 
     it "writes the country as ISO does" do
       expect(Brand.create!(name: "Brahma", country: "br").country).to eq("BR")
+    end
+  end
+
+  describe "a rename" do
+    it "takes its products' search words along, and is no edit of theirs" do
+      brand = Brand.create!(name: "Antartica")
+      product = Product.new(name: "Original", brand: brand, source: "off")
+      product.importing = true
+      product.save!
+
+      Brand.find(brand.id).update!(name: "Antarctica") # as the admin's form loads it
+
+      expect(product.reload.tokens).to contain_exactly("original", "antarctica")
+      expect(product.source).to eq("off")
     end
   end
 
