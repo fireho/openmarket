@@ -14,6 +14,8 @@ class Food < Product
 
   validates :kind, inclusion: { in: Food.kinds.keys }, allow_nil: true
   validates :size, numericality: { only_integer: true, greater_than: 0 }, allow_blank: true # a form sends "", not nil
+  # "garrafa" is no size. Mongoid casts it to nil, which allow_blank lets by.
+  validate { errors.add(:size, :not_a_number) if size.nil? && size_before_type_cast.present? }
 
   # Prints size nice with a gram sign
   def size_g

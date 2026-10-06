@@ -1,13 +1,7 @@
 <% content_for :title, "Visualizando product" %>
 <div class="w-full">
   <h1 class="font-bold text-4xl">
-    <% if @product.drink? %>
-      <%= icon("drinks", size: 42) %>
-    <% elsif @product.food? %>
-      <%= icon("food", size: 42) %>
-    <% else %>
-      <%= icon("products", size: 42) %>
-    <% end %>
+    <%= icon(@product.drink? ? "drinks" : (@product.food? ? "food" : "products"), size: 42) if respond_to?(:icon) %>
     <%= @product.name %>
     <span class="text-lg bg-gray-200 rounded px-3 py-1 ml-3"><%= @product.type_name %></span>
   </h1>

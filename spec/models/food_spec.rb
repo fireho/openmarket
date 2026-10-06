@@ -24,9 +24,6 @@ RSpec.describe Food, type: :model do
       is_expected.to validate_inclusion_of(:kind).to_allow(Food.kinds.keys)
     end
     it do
-      is_expected.to validate_inclusion_of(:pack).to_allow(Food.packs.keys)
-    end
-    it do
       is_expected.to validate_numericality_of(:size).to_allow(
         only_integer: true,
         greater_than: 0
@@ -43,33 +40,39 @@ RSpec.describe Food, type: :model do
     end
   end
 
+  # Enumere's contract, as fire writes it: the field is a String and the
+  # members are keyed by string, so a symbol written in reads back a string.
   describe "#kind" do
-    it "should have new nice enumere and not interfere with field string" do
-      food = Food.make(size: 500, kind: "snack")
-      expect(food.kind).to eq(:snack)
+    it "reads a member written as a string" do
+      expect(Food.make(size: 500, kind: "snack").kind).to eq("snack")
     end
 
-    it "should have new nice enumere and not interfere with field symbol" do
-      food = Food.make(size: 500, kind: :snack)
-      expect(food.kind).to eq(:snack)
+    it "reads a member written as a symbol as its string" do
+      expect(Food.make(size: 500, kind: :snack).kind).to eq("snack")
     end
 
-    it "should have an easy accessor for keys" do
-      expect(Food.kinds).to include(:fast, :burger, :pizza, :snack)
+    it "is fast food when nobody says" do
+      expect(Food.new.kind).to eq("fast")
     end
 
-    it "should have data for each kind" do
-      expect(Food.kinds[:snack]).to be_present
+    it "offers the kinds to a select, named in the reader's language" do
+      I18n.locale = :pt
+      expect(Food.kinds_select).to include([ "Lanche Rápido", "fast" ])
     end
 
-    it "should provide select options" do
-      I18n.locale = :pt # Ensure locale is set for this test
-      expect(Food.kinds_select).to include(["Lanche Rápido", :fast])
-      I18n.locale = I18n.default_locale # Reset locale
+    it "lists every kind" do
+      expect(Food.kinds.keys).to include(*%w[ fast burger pizza pasta sushi dessert snack meat ])
     end
 
-    it "should list all defined kinds" do
-      expect(Food.kinds).to include(:fast, :burger, :pizza, :pasta, :sushi, :dessert, :snack, :meat)
+    it "has a name for every kind, in en and pt" do
+      %i[ en pt ].each do |locale|
+        Food.kinds.each_key { |key| expect(I18n.exists?("mongoid.attributes.food.kind_enums.#{key}", locale)).to be(true), "#{locale}: #{key}" }
+      end
+    end
+
+    # Food comes on a plate, not in a can: no packs, so the form asks none.
+    it "has no pack" do
+      expect(Food.new).not_to respond_to(:pack)
     end
   end
 

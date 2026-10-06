@@ -2,7 +2,7 @@
 <div class="w-full">
   <div class="flex justify-between items-center">
     <h1 class="font-bold text-4xl">
-      <%= icon("products", size: 42) %>
+      <%= icon("products", size: 42) if respond_to?(:icon) %>
       Itens
     </h1>
     <div class="flex space-x-2">

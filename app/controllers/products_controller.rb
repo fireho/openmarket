@@ -33,7 +33,6 @@ class ProductsController < ApplicationController
   def new
     klass = TYPES[params[:type].to_s.camelize] # "drink", as the JSON says it, or "Drink"
     @product = (klass || Product).new
-    @product.type = klass.name if klass
   end
 
   # GET /products/1/edit
@@ -44,7 +43,6 @@ class ProductsController < ApplicationController
   def create
     product_class = TYPES[product_params[:type].to_s.camelize]
     @product = (product_class || Product).new(product_params.except(:type))
-    @product.type = product_class.name if product_class
 
     respond_to do |format|
       if @product.save

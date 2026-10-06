@@ -39,6 +39,8 @@ class Drink < Product
   validates :acl,  numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 100 }, allow_nil: true
   # A recipe has no bottle — nil size is fine, zero is not.
   validates :size, numericality: { only_integer: true, greater_than: 0 }, allow_blank: true # a form sends "", not nil
+  # "garrafa" is no size. Mongoid casts it to nil, which allow_blank lets by.
+  validate { errors.add(:size, :not_a_number) if size.nil? && size_before_type_cast.present? }
 
 
   # Prints alcohol content nice with a percent sign: "4.8%", "40%"

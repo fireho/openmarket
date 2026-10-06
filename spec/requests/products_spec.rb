@@ -14,12 +14,13 @@ RSpec.describe "/products", type: :request do
   # This should return the minimal set of attributes required to create a valid
   # Product. As you add validations to Product, be sure to
   # adjust the attributes here as well.
+  # What the form posts: the class by name, the rest field by field.
   let(:valid_drink_attributes) {
-    Fabricate.build(:drink).attributes
+    Fabricate.attributes_for(:drink).merge(type: "Drink")
   }
 
   let(:valid_food_attributes) {
-    Fabricate.build(:food).attributes
+    Fabricate.attributes_for(:food).merge(type: "Food")
   }
 
   let(:invalid_attributes) {
@@ -28,7 +29,7 @@ RSpec.describe "/products", type: :request do
 
   describe "GET /index" do
     it "renders a successful response" do
-      Product.create! valid_drink_attributes
+      Fabricate(:drink)
       get products_url
       expect(response).to be_successful
     end
@@ -36,13 +37,13 @@ RSpec.describe "/products", type: :request do
 
   describe "GET /show" do
     it "renders a successful response for a drink" do
-      product = Product.create! valid_drink_attributes
+      product = Fabricate(:drink)
       get product_url(product)
       expect(response).to be_successful
     end
 
     it "renders a successful response for food" do
-      product = Product.create! valid_food_attributes
+      product = Fabricate(:food)
       get product_url(product)
       expect(response).to be_successful
     end
@@ -50,7 +51,7 @@ RSpec.describe "/products", type: :request do
 
   describe "GET /lookup/:code" do
     it "answers the product a barcode names, as json" do
-      drink = Product.create! valid_drink_attributes
+      drink = Fabricate(:drink)
       get lookup_products_url(code: drink.code, format: :json)
 
       expect(response).to be_successful
@@ -58,7 +59,7 @@ RSpec.describe "/products", type: :request do
     end
 
     it "does not hand out what is the host's own" do
-      drink = Product.create! valid_drink_attributes
+      drink = Fabricate(:drink)
       get lookup_products_url(code: drink.code, format: :json)
 
       expect(response.parsed_body.keys).not_to include("org_id", "sku", "uses")
@@ -73,7 +74,7 @@ RSpec.describe "/products", type: :request do
 
   describe "GET /search" do
     it "lists what matches, as json" do
-      drink = Product.create! valid_drink_attributes
+      drink = Fabricate(:drink)
       get search_products_url(q: drink.name.first(4), format: :json)
 
       expect(response).to be_successful
@@ -103,11 +104,29 @@ RSpec.describe "/products", type: :request do
       get new_product_url(type: 'Food')
       expect(response).to be_successful
     end
+
+    # Two fields of one name both post, and the last one wins: a drink's
+    # size lost to an empty food size it never showed.
+    it "draws each field once, the drink's for a drink" do
+      get new_product_url(type: "Drink")
+      fields = response.body.scan(/name="product\[(\w+)\]"/).flatten
+
+      expect(fields.tally.select { |_, count| count > 1 }).to be_empty
+      expect(fields).to include("type", "kind", "pack", "size", "acl")
+    end
+
+    it "draws a food's fields for a food, with no pack" do
+      get new_product_url(type: "Food")
+      fields = response.body.scan(/name="product\[(\w+)\]"/).flatten
+
+      expect(fields).to include("type", "kind", "size")
+      expect(fields).not_to include("pack", "acl")
+    end
   end
 
   describe "GET /edit" do
     it "renders a successful response" do
-      product = Product.create! valid_drink_attributes
+      product = Fabricate(:drink)
       get edit_product_url(product)
       expect(response).to be_successful
     end
@@ -120,6 +139,12 @@ RSpec.describe "/products", type: :request do
           post products_url, params: { product: valid_drink_attributes }
         }.to change(Product, :count).by(1)
         expect(Product.last.class).to eq(Drink)
+      end
+
+      it "keeps the kind, pack and size the form sent" do
+        post products_url, params: { product: valid_drink_attributes.merge(kind: "wine", pack: "grf", size: "750", acl: "13.5") }
+
+        expect(Product.last).to have_attributes(kind: "wine", pack: "grf", size: 750, acl: 13.5)
       end
 
       it "redirects to the created product" do
@@ -188,14 +213,14 @@ RSpec.describe "/products", type: :request do
       }
 
       it "updates the requested product" do
-        product = Product.create! valid_drink_attributes
+        product = Fabricate(:drink)
         patch product_url(product), params: { product: new_attributes }
         product.reload
         expect(product.name).to eq("New Product Name")
       end
 
       it "redirects to the product" do
-        product = Product.create! valid_drink_attributes
+        product = Fabricate(:drink)
         patch product_url(product), params: { product: new_attributes }
         product.reload
         expect(response).to redirect_to(product_url(product))
@@ -204,7 +229,7 @@ RSpec.describe "/products", type: :request do
 
     context "with invalid parameters" do
       it "renders a response with 422 status (i.e. to display the 'edit' template)" do
-        product = Product.create! valid_drink_attributes
+        product = Fabricate(:drink)
         patch product_url(product), params: { product: invalid_attributes }
         expect(response).to have_http_status(:unprocessable_entity)
       end
@@ -213,14 +238,14 @@ RSpec.describe "/products", type: :request do
 
   describe "DELETE /destroy" do
     it "destroys the requested product" do
-      product = Product.create! valid_drink_attributes
+      product = Fabricate(:drink)
       expect {
         delete product_url(product)
       }.to change(Product, :count).by(-1)
     end
 
     it "redirects to the products list" do
-      product = Product.create! valid_drink_attributes
+      product = Fabricate(:drink)
       delete product_url(product)
       expect(response).to redirect_to(products_url)
     end

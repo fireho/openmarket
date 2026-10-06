@@ -239,10 +239,27 @@ mapper, the dump format and its builder, the importer on fake models, the menu
 reader, the Wikidata client on a made-up answer — with no Rails and no Mongo.
 GitHub Actions runs them on every push and pull request (`.github/workflows/specs.yml`).
 
-The model and request specs (`spec/models`, `spec/requests`) need Mongo and the
-fabricators here (`spec/fabricators/product_fabricator.rb`): one `:product`, with
-`:drink` and `:food` inheriting it. The gem has no harness for those yet — the
-host app that loads it runs them.
+The model, request and routing specs boot `spec/dummy`, the smallest host the
+engine runs in, on a real Mongo:
+
+```
+  spec/lib       plain Ruby          bin/rspec spec/lib
+  spec/models    ┐
+  spec/requests  ├─ spec/dummy + Mongo   MONGO_TEST_DB=openmarket_<who> bin/rspec spec/models spec/requests spec/routing
+  spec/routing   ┘
+```
+
+The dummy plays the host's part: an `Org`, a `shared/errors` partial, pagy, a
+currency for Money, and the catalogue routes drawn at its top level. It plays
+fire's too: `spec/dummy/app/models/concerns/enumere.rb` is a stand-in for fire's
+`Enumere` — the part openmarket reads, same contract (a String field, members
+keyed by string) — until fire is open. A host with fire never loads it.
+
+Every run drops the test database and rebuilds its indexes from the models;
+`MONGO_HOST` points it elsewhere than `localhost:27017`. CI runs both halves,
+the second against a `mongo:7` service. The fabricators
+(`spec/fabricators/product_fabricator.rb`) are one `:product`, with `:drink`
+and `:food` inheriting it.
 
 ## License
 

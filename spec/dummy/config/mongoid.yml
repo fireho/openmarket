@@ -1,0 +1,9 @@
+# A database of its own per run: MONGO_TEST_DB=openmarket_<who> bin/rspec …
+test:
+  clients:
+    default:
+      database: <%= ENV.fetch("MONGO_TEST_DB", "openmarket_test") %>
+      hosts:
+        - <%= ENV.fetch("MONGO_HOST", "localhost:27017") %>
+      options:
+        server_selection_timeout: 2

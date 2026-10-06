@@ -67,59 +67,45 @@ RSpec.describe Drink, type: :model do
     end
   end
 
+  # Enumere's contract, as fire writes it: the field is a String and the
+  # members are keyed by string, so a symbol written in reads back a string.
   describe "#kind" do
-    it "should have new nice enumere and not interfere with field string" do
-      drink = Drink.make(size: 750, acl: 40, kind: "beer")
-      expect(drink.kind).to eq(:beer)
+    it "reads a member written as a string" do
+      expect(Drink.make(kind: "beer").kind).to eq("beer")
     end
 
-    it "should have new nice enumere and not interfere with field symbol" do
-      drink = Drink.make(size: 750, acl: 40, kind: :beer)
-      expect(drink.kind).to eq(:beer)
+    it "reads a member written as a symbol as its string" do
+      expect(Drink.make(kind: :beer).kind).to eq("beer")
     end
 
-    it "should have an easy accessor for keys" do
-      expect(Drink.kinds).to include(:beer, :wine, :vodka)
+    it "is a beer in a can when nobody says" do
+      expect(Drink.new).to have_attributes(kind: "beer", pack: "can")
     end
 
-    it "should have data for each kind" do
-      expect(Drink.kinds[:beer]).to be_present
-      expect(Drink.kinds[:beer][:acl]).to eq(5) # Assuming this is the acl for beer
+    it "carries what each kind declares" do
+      expect(Drink.kinds["beer"][:acl]).to eq(5)
+      expect(Drink.new(kind: "whisky").kind_data[:acl]).to eq(40)
     end
 
-    it "should provide select options" do
-      I18n.locale = :pt # Ensure locale is set for this test
-      expect(Drink.kinds_select).to include(["Cerveja", :beer])
-      I18n.locale = I18n.default_locale # Reset locale
-    end
-
-    it "should have translations for kind" do
+    it "offers the kinds to a select, named in the reader's language" do
       I18n.locale = :pt
-      drink = Drink.new(kind: "beer")
-      expect(drink.kind_name).to eq("Cerveja") # Or whatever the PT translation is
+      expect(Drink.kinds_select).to include([ "Cerveja", "beer" ])
     end
 
-    it "should have translations for kind" do
+    it "names the kind and the pack" do
       I18n.locale = :pt
-      drink = Drink.new(kind: "wine")
-      expect(drink.kind_name).to eq("Vinho") # Or whatever the PT translation is
+      expect(Drink.new(kind: "wine", pack: "can")).to have_attributes(kind_name: "Vinho", pack_name: "Lata")
     end
 
-    it "should have translations for pack" do
-      I18n.locale = :pt
-      drink = Drink.new(pack: "can")
-      expect(drink.pack_name).to eq("Lata") # Or whatever the PT translation is
+    it "lists every kind the catalogue files drinks under" do
+      expect(Drink.kinds.keys).to include(*%w[ beer water whisky gin rum cachaca wine vodka cognac cider liquor tequila soda juice energy mixed tea ])
     end
 
-    it "should list all defined kinds" do
-      expect(Drink.kinds).to include(:rum, :gin, :beer, :wine, :vodka, :whisky, :tequila, :soda, :water, :juice, :energy, :cognac, :liquor)
-    end
-
-    it "should provide translated data for all kinds" do
-      I18n.locale = :pt
-      # Example check, assuming 'Cerveja' is the PT translation for beer
-      expect(Drink.kinds[:beer][:name]).to eq("Cerveja")
-      expect(Drink.kinds[:wine][:name]).to eq("Vinho") # Assuming 'Vinho' for wine
+    it "has a name for every kind and pack, in en and pt" do
+      %i[ en pt ].each do |locale|
+        Drink.kinds.each_key { |key| expect(I18n.exists?("mongoid.attributes.drink.kind_enums.#{key}", locale)).to be(true), "#{locale}: #{key}" }
+        Drink.packs.each_key { |key| expect(I18n.exists?("mongoid.attributes.drink.pack_enums.#{key}", locale)).to be(true), "#{locale}: #{key}" }
+      end
     end
   end
 

@@ -74,6 +74,24 @@ class Product
   def drink? = is_a?(Drink)
   def food?  = is_a?(Food)
 
+  # The class as the form's type radio names it: "Drink", "Food". Read only:
+  # a class is picked at `new` (ProductsController::TYPES), never assigned.
+  def type = _type
+
+  # The class as a person reads it: "Bebida", "Comida" (mongoid.models.*).
+  def type_name = self.class.model_name.human
+
+  # One shelf, one controller: a Drink's form posts product[...] to
+  # /products, and a link or a redirect to it is product_path. In words it
+  # stays itself — "Bebida", and the drink's kinds (i18n_key is untouched).
+  def self.model_name
+    @product_model_name ||= super.dup.tap do |name|
+      name.param_key = "product"
+      name.route_key = "products"
+      name.singular_route_key = "product"
+    end
+  end
+
   # A name in any language beats none: a row imported as { "es" => "Cerveza
   # Quilmes" } still reads "Cerveza Quilmes" where the locale is pt.
   def name = super.presence || name_translations&.values&.find(&:present?)
@@ -182,11 +200,12 @@ class Product
   # default Mongoid fills into a field the stored row lacks (it reports those
   # as changes the moment a row is loaded).
   def edited?
-    changes.any? do |field, (was, now)|
-      next false unless OWNED.include?(field)
+    changes.any? do |name, (was, now)|
+      next false unless OWNED.include?(name)
       next false if was.blank? && now.blank?
 
-      !(was.nil? && now == self.class.fields[field]&.default_val)
+      # The default as stored: `default: :beer` lands as "beer" in a String field.
+      !(was.nil? && (field = self.class.fields[name]) && now == field.eval_default(self))
     end
   end
 

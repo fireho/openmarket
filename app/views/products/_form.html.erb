@@ -1,17 +1,22 @@
 <%= form_with(model: @product, class: "contents") do |form| %>
   <%= render "shared/errors", object: @product %>
   <fieldset class="fieldset">
-    <%= form.legend %>
-    <!-- Type Selection -->
-    <div class="form-control">
-      <%= form.label(:type, "Tipo") %>
-      <div class="flex space-x-4 mt-2">
-        <%= form.radio_button :type, "Drink", { class: "type-radio", id: "type_drink", onchange: "toggleTypeFields()" } %>
-        <%= form.label :type_drink, "Bebida", { class: "ml-2 mr-4" } %>
-        <%= form.radio_button :type, "Food", { class: "type-radio", id: "type_food", onchange: "toggleTypeFields()" } %>
-        <%= form.label :type_food, "Comida", { class: "ml-2" } %>
+    <%# The link that opened the form picked the class; only a bare product
+        asks. One set of fields per class: two would both post product[size],
+        and the empty one, last, would win. %>
+    <% if @product.drink? || @product.food? %>
+      <%= form.hidden_field :type %>
+    <% else %>
+      <div class="form-control">
+        <%= form.label(:type, "Tipo") %>
+        <div class="flex space-x-4 mt-2">
+          <%= form.radio_button :type, "Drink" %>
+          <%= form.label :type_drink, "Bebida", { class: "ml-2 mr-4" } %>
+          <%= form.radio_button :type, "Food" %>
+          <%= form.label :type_food, "Comida", { class: "ml-2" } %>
+        </div>
       </div>
-    </div>
+    <% end %>
     <div class="form-control">
       <%= form.label(:name, "Nome") %>
       <%= form.text_field(:name) %>
@@ -20,16 +25,15 @@
       <%= form.label(:code, "Código") %>
       <%= form.text_field(:code) %>
     </div>
-    <!-- Dynamic fields based on type -->
-    <div id="drink-fields" class="type-specific-fields" style="display: none;">
+    <% if @product.drink? %>
       <div class="form-control">
         <%= form.label(:kind, "Tipo de Bebida") %>
-        <%= form.select(:kind, options_for_select(Drink.kinds_select, @product.kind), { include_blank: "Selecione..." }, { class: "form-select" }) %>
+        <%= form.select(:kind, Drink.kinds_select, { include_blank: "Selecione..." }, { class: "form-select" }) %>
       </div>
       <div class="flex space-x-4 my-5">
         <div class="form-control w-1/2">
           <%= form.label(:pack, "Embalagem") %>
-          <%= form.select(:pack, options_for_select(Drink.packs_select, @product.pack), { include_blank: "Selecione..." }, { class: "form-select" }) %>
+          <%= form.select(:pack, Drink.packs_select, { include_blank: "Selecione..." }, { class: "form-select" }) %>
         </div>
         <div class="flex space-x-4 w-1/2">
           <div class="form-control w-1/2">
@@ -38,27 +42,22 @@
           </div>
           <div class="form-control w-1/2">
             <%= form.label(:acl, "Álcool (%)") %>
-            <%= form.number_field(:acl) %>
+            <%= form.number_field(:acl, step: "any") %>
           </div>
         </div>
       </div>
-    </div>
-    <div id="food-fields" class="type-specific-fields" style="display: none;">
-      <div class="form-control">
-        <%= form.label(:kind, "Tipo de Comida") %>
-        <%= form.select(:kind, options_for_select(Food.kinds_select, @product.kind), { include_blank: "Selecione..." }, { class: "form-select" }) %>
-      </div>
+    <% elsif @product.food? %>
       <div class="flex space-x-4 my-5">
         <div class="form-control w-1/2">
-          <%= form.label(:pack, "Embalagem") %>
-          <%= form.select(:pack, options_for_select(Food.packs_select, @product.pack), { include_blank: "Selecione..." }, { class: "form-select" }) %>
+          <%= form.label(:kind, "Tipo de Comida") %>
+          <%= form.select(:kind, Food.kinds_select, { include_blank: "Selecione..." }, { class: "form-select" }) %>
         </div>
         <div class="form-control w-1/2">
           <%= form.label(:size, "Tamanho (g)") %>
           <%= form.number_field(:size) %>
         </div>
       </div>
-    </div>
+    <% end %>
     <div class="form-control">
       <%= form.label(:brand_name) %>
       <%= form.text_field(:brand_name, list: "brand-names", autocomplete: "off",
@@ -86,29 +85,6 @@
   <%= button_to "Excluir", product_path(@product), method: :delete, class: "btn btn-danger", form: { class: "inline", data: { turbo_confirm: "Tem certeza?" } } %>
 <% end %>
 <script>
-  function toggleTypeFields() {
-    const drinkRadio = document.getElementById('type_drink');
-    const foodRadio = document.getElementById('type_food');
-    const drinkFields = document.getElementById('drink-fields');
-    const foodFields = document.getElementById('food-fields');
-
-    if (drinkRadio.checked) {
-      drinkFields.style.display = 'block';
-      foodFields.style.display = 'none';
-    } else if (foodRadio.checked) {
-      drinkFields.style.display = 'none';
-      foodFields.style.display = 'block';
-    } else {
-      drinkFields.style.display = 'none';
-      foodFields.style.display = 'none';
-    }
-  }
-
-  // Initialize on page load
-  document.addEventListener('DOMContentLoaded', function() {
-    toggleTypeFields();
-  });
-
   // The catalogue has more brands than a page could carry, so the names come
   // as someone types: the first 20 that start with what is in the field. A
   // name nobody has yet is fine too: saving the product makes the brand.

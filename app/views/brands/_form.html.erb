@@ -1,7 +1,6 @@
 <%= form_with(model: @brand, class: "contents") do |form| %>
   <%= render "shared/errors", object: @brand %>
   <fieldset class="fieldset">
-    <%= form.legend %>
     <div class="form-control">
       <%= form.label(:name) %>
       <%= form.text_field(:name, required: true) %>

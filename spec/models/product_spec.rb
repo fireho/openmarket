@@ -93,6 +93,16 @@ RSpec.describe Product, type: :model do
 
       expect(product.reload.source).to eq("off")
     end
+
+    # Mongoid fills a field's default into a row stored without it, and
+    # reports that as a change: "beer" for a drink's kind. Not an edit.
+    it "stays on a row stored without its defaults" do
+      Product.collection.insert_one(_type: "Drink", name: { "en" => "Brahma" }, code: "7891991010023", source: "off")
+      drink = Product.find_by(code: "7891991010023")
+      drink.update!(uses: 3)
+
+      expect(drink.reload.source).to eq("off")
+    end
   end
 
   describe "#tokens" do
@@ -247,28 +257,19 @@ RSpec.describe Product, type: :model do
   end
 
   describe "#type_name" do
-    it "returns 'Product' for base products" do
-      product = Product.new
-      expect(product._type).to eq('Product')
-    end
-
-    it "returns 'Bebida' for drinks" do
-      product = Product.new(_type: 'Drink')
-      expect(product.class).to eq(Drink)
-    end
-
-    it "returns 'Comida' for food" do
-      product = Product.new(_type: 'Food')
-      expect(product.class).to eq(Food)
+    it "names the class in the reader's language" do
+      I18n.locale = :pt
+      expect([ Drink.new, Food.new, Product.new ].map(&:type_name)).to eq(%w[ Bebida Comida Produto ])
     end
   end
 
-  describe "#type virtual accessor" do
-    it "gets and sets the _type field" do
-      product = Product.new
-      product.type = 'Drink'
-      expect(product._type).to eq('Drink')
-      expect(product.type).to eq('Drink')
+  describe "#type" do
+    it "is the class, as the form's radio names it" do
+      expect([ Drink.new, Food.new, Product.new ].map(&:type)).to eq(%w[ Drink Food Product ])
+    end
+
+    it "is never assigned: the class is picked at new" do
+      expect(Product.new).not_to respond_to(:type=)
     end
   end
 
