@@ -1,5 +1,5 @@
 <div id="<%= dom_id product %>" class="my-5">
-  <div class="flex flex-wrap products-baseline justify-between gap-y-2">
+  <div class="flex flex-wrap items-baseline justify-between gap-y-2">
     <div>
       <h2 class="font-bold text-2xl">
         <%= link_to product.name, product %>
@@ -10,7 +10,7 @@
         <%= product.brand.name if product.brand %>
       </small>
     </div>
-    <div class="flex products-baseline gap-x-4">
+    <div class="flex items-baseline gap-x-4">
       <% if product.respond_to?(:pack_name) %>
         <span><%= product.pack_name %></span>
       <% end %>

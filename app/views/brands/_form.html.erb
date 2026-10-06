@@ -1,0 +1,33 @@
+<%= form_with(model: @brand, class: "contents") do |form| %>
+  <%= render "shared/errors", object: @brand %>
+  <fieldset class="fieldset">
+    <%= form.legend %>
+    <div class="form-control">
+      <%= form.label(:name) %>
+      <%= form.text_field(:name, required: true) %>
+    </div>
+    <div class="form-control">
+      <%= form.label(:info) %>
+      <%= form.text_area(:info, rows: 2) %>
+    </div>
+    <div class="flex space-x-4 my-5">
+      <div class="form-control w-1/2">
+        <%= form.label(:country) %>
+        <%= form.text_field(:country, maxlength: 2, placeholder: "BR") %>
+      </div>
+      <div class="form-control w-1/2">
+        <%= form.label(:wikidata) %>
+        <%= form.text_field(:wikidata, pattern: "Q[0-9]+", placeholder: "Q…") %>
+      </div>
+    </div>
+    <div class="form-control">
+      <%= form.label(:site) %>
+      <%= form.url_field(:site, placeholder: "https://") %>
+    </div>
+    <div class="form-control">
+      <%= form.label(:logo) %>
+      <%= form.url_field(:logo, placeholder: "https://") %>
+    </div>
+  </fieldset>
+  <div class="inline"><%= form.submit "Salvar", class: "btn btn-primary" %></div>
+<% end %>

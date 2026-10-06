@@ -20,6 +20,7 @@ pt:
         code: Código EAN
         sku: SKU
         brand: Marca
+        brand_name: Marca
         org: Organização
         uses: Usos
         image: Imagem
@@ -36,6 +37,8 @@ pt:
         site: Site
         logo: Logo
         source: Origem
+        key: Nome em qualquer grafia
+        products: Produtos
       drink:
         kind: Tipo
         pack: Embalagem
@@ -77,3 +80,9 @@ pt:
           dessert: Sobremesa
           snack: Petisco
           meat: Carne
+    errors:
+      models:
+        brand:
+          attributes:
+            products:
+              destroy_restrict_with_error_dependencies_exist: "ainda estão nesta marca: mova-os para outra antes"

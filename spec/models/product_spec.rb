@@ -104,6 +104,48 @@ RSpec.describe Product, type: :model do
     end
   end
 
+  describe "#brand_name" do
+    it "is the brand's name" do
+      expect(Product.new(brand: Brand.new(name: "Brahma")).brand_name).to eq("Brahma")
+      expect(Product.new.brand_name).to be_nil
+    end
+
+    it "finds the brand however it was typed" do
+      brand = Brand.create!(name: "Antártica")
+
+      expect { Product.new(brand_name: " ANTARTICA ") }.not_to change(Brand, :count)
+      expect(Product.new(brand_name: " ANTARTICA ").brand).to eq(brand)
+    end
+
+    it "makes a brand nobody has yet" do
+      product = nil
+      expect { product = Product.new(brand_name: "Cervejaria  Nova ") }.to change(Brand, :count).by(1)
+
+      expect(product.brand).to be_persisted
+      expect(product.brand.name).to eq("Cervejaria Nova")
+    end
+
+    it "takes the brand off when blank" do
+      product = Product.create!(name: "Chopp", brand: Brand.create!(name: "Brahma"))
+      product.update!(brand_name: " ")
+
+      expect(product.reload.brand).to be_nil
+    end
+
+    it "is an edit like any other, so an import leaves the row alone" do
+      imported = Product.new(name: "Brahma", code: "7891991010023", source: "off")
+      imported.importing = true
+      imported.save!
+
+      product = Product.find(imported.id) # as a person's form loads it
+      expect(product.source).to eq("off")
+      product.update!(brand_name: "Ambev")
+
+      expect(product.reload.source).to be_nil
+      expect(product.tokens).to include("ambev")
+    end
+  end
+
   describe "code per owner" do
     it "lets an org file its own product under a barcode the shared catalogue has" do
       Product.create!(name: "Brahma", code: "7891991010023")

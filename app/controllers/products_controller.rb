@@ -28,7 +28,7 @@ class ProductsController < ApplicationController
   # GET /products/new
   def new
     @product = params[:type]&.classify&.constantize&.new || Product.new
-    @product.type = params[:type] if params[:type].in?(['Drink', 'Food'])
+    @product.type = params[:type] if params[:type].in?([ "Drink", "Food" ])
   end
 
   # GET /products/1/edit
@@ -39,7 +39,7 @@ class ProductsController < ApplicationController
   def create
     product_class = product_params[:type]&.classify&.constantize || Product
     @product = product_class.new(product_params.except(:type))
-    @product.type = product_params[:type] if product_params[:type].in?(['Drink', 'Food'])
+    @product.type = product_params[:type] if product_params[:type].in?([ "Drink", "Food" ])
 
     respond_to do |format|
       if @product.save
@@ -83,6 +83,6 @@ class ProductsController < ApplicationController
 
   # Only allow a list of trusted parameters through.
   def product_params
-    params.expect(product: [:type, :name, :info, :kind, :code, :pack, :brand_id, :org_id, :size, :acl, :image, :quantity])
+    params.expect(product: [ :type, :name, :info, :kind, :code, :pack, :brand_id, :brand_name, :org_id, :size, :acl, :image, :quantity ])
   end
 end

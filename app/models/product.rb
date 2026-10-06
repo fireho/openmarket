@@ -77,6 +77,17 @@ class Product
   # Quilmes" } still reads "Cerveza Quilmes" where the locale is pt.
   def name = super.presence || name_translations&.values&.find(&:present?)
 
+  # The brand as a form writes it: a name. Found however it was cased or
+  # accented, made when nobody has it yet; blank takes the brand off. A new
+  # brand is saved even if the product then is not: it is a real name someone
+  # typed, and the next try finds it.
+  def brand_name = brand&.name
+
+  def brand_name=(name)
+    name = name.to_s.squish
+    self.brand = name.empty? ? nil : Brand.named(name) || Brand.create!(name: name)
+  end
+
   # The scan: a barcode in any spelling — UPC-A, EAN-13, with spaces — and the
   # one product it names, or nil. With `org`, that org's own comes first.
   #
