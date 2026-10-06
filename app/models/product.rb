@@ -119,9 +119,14 @@ class Product
   def self.lookup(code, org: nil)
     return if code.to_s.strip.empty?
 
+    self.for(org).with_code(code).order_by(org_id: -1).first
+  end
+
+  # Every row a code names, in any spelling: a barcode's UPC-A and EAN-13
+  # alike, anything else as typed. Chains onto any scope.
+  def self.with_code(code)
     spellings = Openmarket::Ean.variants(code)
-    spellings = [ code.to_s.strip ] if spellings.empty?
-    self.for(org).where(code: { "$in" => spellings }).order_by(org_id: -1).first
+    where(code: { "$in" => spellings.empty? ? [ code.to_s.strip ] : spellings })
   end
 
   # What someone typing wants: every word a prefix of a word in the name (in

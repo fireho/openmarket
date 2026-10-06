@@ -14,5 +14,12 @@ Rails.application.routes.draw do
     end
   end
 
+  # An app's own door on the catalogue (app/controllers/bar_products_controller.rb).
+  scope "bar", as: "bar" do
+    resources :products, controller: "bar_products" do
+      get "lookup/:code", action: :lookup, as: :lookup, on: :collection
+    end
+  end
+
   root "products#index"
 end

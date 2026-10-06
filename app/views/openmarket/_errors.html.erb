@@ -1,6 +1,6 @@
-<%# What a host's form shows when a save is refused. %>
+<%# Why a save was refused. An app draws its own at app/views/openmarket/_errors. %>
 <% if object.errors.any? %>
-  <div role="alert">
+  <div role="alert" class="alert alert-error">
     <ul>
       <% object.errors.full_messages.each do |message| %>
         <li><%= message %></li>

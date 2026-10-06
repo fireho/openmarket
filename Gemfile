@@ -12,8 +12,8 @@ gem "rubocop-rails-omakase", require: false
 gem "rspec", group: :test
 
 # The host specs (spec/models, spec/requests, spec/routing) boot spec/dummy,
-# a host as small as one gets, on a real Mongo. What a fire host brings and
-# the engine leans on, the dummy brings too — at the versions fire pins.
+# a host as small as one gets, on a real Mongo. What a host brings and the
+# engine leans on, the dummy brings too.
 group :test do
   gem "rspec-rails"
   gem "mongoid-rspec"

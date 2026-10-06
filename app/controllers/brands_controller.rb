@@ -8,7 +8,7 @@ class BrandsController < ApplicationController
 
   # GET /brands/1 or /brands/1.json — and the products filed under it.
   def show
-    @pagy, @products = pagy(@brand.products, limit: 50)
+    @pagy, @products = pagy(products.where(brand_id: @brand.id), limit: 50)
   end
 
   # GET /brands/search.json?q=amb — what to offer while someone types a brand.
@@ -68,7 +68,11 @@ class BrandsController < ApplicationController
   end
 
   private
-  # Use callbacks to share common setup or constraints between actions.
+
+  # The products a brand's page lists: the shared catalogue, as in
+  # ProductsController#products. An app that shows more overrides both.
+  def products = Product.shared
+
   def set_brand
     @brand = Brand.find(params.expect(:id))
   end

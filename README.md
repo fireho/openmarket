@@ -28,8 +28,53 @@ Product.for(org)   # what that org may offer: shared + its own
 ```
 
 `Product.for(nil)` is the shared catalogue, so a picker can always call it.
-The host decides who may write which — typically supercow for the shared
-ones, an org's own people for theirs.
+
+### Your app decides
+
+The engine knows nothing of who asks. As it ships, its controllers show and
+write the shared catalogue to whoever your `ApplicationController` lets in.
+Anything else is yours to override:
+
+```
+  what                        override                             ships as
+  who may come in             before_action                        whoever ApplicationController lets in
+  which products              ProductsController#products          Product.shared
+  a brand's page lists        BrandsController#products            Product.shared
+  what a product form writes  ProductsController#product_params    every field but org_id
+  a page                      app/views/products/*, brands/*       the engine's
+  why a save was refused      app/views/openmarket/_errors         the engine's
+```
+
+Subclass, and draw the product routes to yours; `super` is the engine's.
+An org's shelf, say — the catalogue and its own to look at, only its own to
+write:
+
+```ruby
+class Bar::ProductsController < ProductsController
+  before_action :authenticate_user!
+
+  private
+
+  def products = action_name.in?(%w[ edit update destroy ]) ? Product.of(current_org) : Product.for(current_org)
+  def product_params = super.merge(org_id: current_org.id)
+end
+```
+
+```ruby
+resources :products, controller: "bar/products" do
+  collection do
+    get :search
+    get "lookup/:code", action: :lookup, as: :lookup
+  end
+end
+```
+
+The engine's pages link with `products_path` and friends, so one controller
+answers to those names. A scan through `products` finds an org's own before
+the shared one with the same barcode. The specs run this very subclass
+(`spec/dummy/app/controllers/bar_products_controller.rb`). For what needs no
+`super` — a `before_action`, `products` — reopening the engine's controller
+with `class_eval` in a `config.to_prepare` block works too.
 
 ## Kinds and packs
 
@@ -249,11 +294,12 @@ engine runs in, on a real Mongo:
   spec/routing   ┘
 ```
 
-The dummy plays the host's part: an `Org`, a `shared/errors` partial, pagy, a
-currency for Money, and the catalogue routes drawn at its top level. It plays
-fire's too: `spec/dummy/app/models/concerns/enumere.rb` is a stand-in for fire's
-`Enumere` — the part openmarket reads, same contract (a String field, members
-keyed by string) — until fire is open. A host with fire never loads it.
+The dummy plays the host's part: an `Org`, pagy, a currency for Money, the
+catalogue routes drawn at its top level, and one override
+(`BarProductsController`, see Your app decides). Until Enumere is published,
+`spec/dummy/app/models/concerns/enumere.rb` stands in for it — the part
+openmarket reads, same contract (a String field, members keyed by string). A
+host that has the real one never loads it.
 
 Every run drops the test database and rebuilds its indexes from the models;
 `MONGO_HOST` points it elsewhere than `localhost:27017`. CI runs both halves,

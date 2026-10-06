@@ -1,5 +1,5 @@
 <%= form_with(model: @product, class: "contents") do |form| %>
-  <%= render "shared/errors", object: @product %>
+  <%= render "openmarket/errors", object: @product %>
   <fieldset class="fieldset">
     <%# The link that opened the form picked the class; only a bare product
         asks. One set of fields per class: two would both post product[size],

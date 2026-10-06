@@ -1,6 +1,5 @@
-# A stand-in for fire's Enumere (app/models/concerns/enumere.rb there), the
-# part of it openmarket reads, until fire is open. A host with fire never
-# loads this file: fire's own is the one autoloaded.
+# A stand-in for Enumere, the part of it openmarket reads, until Enumere is
+# published. A host that has the real one never loads this file.
 #
 #   enumere :kinds, default: :beer
 #   kind :beer, acl: 5

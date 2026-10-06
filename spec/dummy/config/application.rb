@@ -9,8 +9,8 @@ require "jbuilder"
 require "openmarket"
 
 # The smallest host the engine runs in: what spec/models, spec/requests and
-# spec/routing boot. It plays fire's part too — fire's Enumere lives in
-# app/models/concerns, as a stand-in, until fire is open.
+# spec/routing boot. Enumere, until it is published, is a stand-in in
+# app/models/concerns.
 module Dummy
   class Application < Rails::Application
     config.load_defaults 8.0

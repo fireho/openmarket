@@ -3,7 +3,7 @@ class ProductsController < ApplicationController
 
   # GET /products or /products.json
   def index
-    @pagy, @products = pagy(Product.search(params[:search]), limit: 50)
+    @pagy, @products = pagy(products.search(params[:search]), limit: 50)
   end
 
   # GET /products/1 or /products/1.json
@@ -11,9 +11,10 @@ class ProductsController < ApplicationController
   end
 
   # GET /products/lookup/7891991010023 or .json — the scan: a barcode, in any
-  # spelling, and the one product it names. 404 when the catalogue lacks it.
+  # spelling, and the one product it names, an owner's own before the shared
+  # one. 404 when `products` lacks it.
   def lookup
-    @product = Product.lookup(params[:code])
+    @product = products.with_code(params[:code]).order_by(org_id: -1).first
     return head :not_found unless @product
 
     render :show
@@ -21,7 +22,7 @@ class ProductsController < ApplicationController
 
   # GET /products/search.json?q=brah — what to offer while someone types.
   def search
-    @products = Product.search(params[:q]).limit(20)
+    @products = products.search(params[:q]).limit(20)
     render :index, formats: :json
   end
 
@@ -79,13 +80,21 @@ class ProductsController < ApplicationController
   end
 
   private
-  # Use callbacks to share common setup or constraints between actions.
+
+  # What this controller reads, edits and scans: the shared catalogue. Who
+  # asks, and what else they may see, is the app's to say — it overrides
+  # this (README § Your app decides):
+  #
+  #   def products = Product.for(current_org)   # its own beside the catalogue
+  def products = Product.shared
+
   def set_product
-    @product = Product.find(params.expect(:id))
+    @product = products.find(params.expect(:id))
   end
 
-  # Only allow a list of trusted parameters through.
+  # What a form may write. No org: filing a product under one is the app's,
+  # which adds it here — `super.merge(org_id: current_org.id)`.
   def product_params
-    params.expect(product: [ :type, :name, :info, :kind, :code, :pack, :brand_id, :brand_name, :org_id, :size, :acl, :image, :quantity ])
+    params.expect(product: [ :type, :name, :info, :kind, :code, :pack, :brand_id, :brand_name, :size, :acl, :image, :quantity ])
   end
 end

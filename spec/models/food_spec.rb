@@ -40,7 +40,7 @@ RSpec.describe Food, type: :model do
     end
   end
 
-  # Enumere's contract, as fire writes it: the field is a String and the
+  # Enumere's contract: the field is a String and the
   # members are keyed by string, so a symbol written in reads back a string.
   describe "#kind" do
     it "reads a member written as a string" do
