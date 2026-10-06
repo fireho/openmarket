@@ -23,11 +23,14 @@ class Product
 
   belongs_to :brand, optional: true
 
-  # Who may put this on a menu. Nothing (`org: nil`) is the shared catalogue —
-  # a Brahma is a Brahma, an admin curates it, everybody selects it. An org on
-  # it makes it that org's own: a recipe ("Caipirinha da Casa"), theirs to
-  # write and nobody else's to see. `Product.for(org)` is both together.
-  belongs_to :org, optional: true
+  # Who may put this on a menu. Nothing (`org_id: nil`) is the shared
+  # catalogue — a Brahma is a Brahma, an admin curates it, everybody selects
+  # it. An owner's id makes it that owner's own: a recipe ("Caipirinha da
+  # Casa"), theirs to write and nobody else's to see. `Product.for(org)` is
+  # both together. An id, not an association: the engine names no Org class,
+  # so whatever owns things in the app — an org, a shop, a user — does. An
+  # app with an Org model may add `belongs_to :org` itself.
+  field :org_id, type: Object
 
   validates :name, presence: true
   # One barcode per owner: the shared catalogue has one Brahma, and an org's
@@ -56,7 +59,7 @@ class Product
   before_save { self.tokens = tokenize }
 
   scope :shared, -> { where(org_id: nil) }
-  scope :of,     ->(org) { where(org_id: org) }
+  scope :of,     ->(org) { where(org_id: org.try(:id) || org) }
 
   # The catalogue as one org sees it: what everybody has, plus what is theirs.
   def self.for(org)

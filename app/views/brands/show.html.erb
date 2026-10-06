@@ -61,8 +61,9 @@
     <%== pagy_nav(@pagy) if defined?(pagy_nav) %>
   </div>
   <%= link_to "Voltar", brands_path, class: "btn btn-secondary" %>
-  <%# A brand with products is not destroyed (see Brand), so it offers no button. %>
-  <% if @pagy.count.zero? %>
+  <%# A brand with products is not destroyed (see Brand), so it offers no
+      button — counting every product, also those this page does not list. %>
+  <% if @brand.products.empty? %>
     <%= button_to "Excluir", @brand, method: :delete, class: "btn btn-danger", form: { class: "inline", data: { turbo_confirm: "Tem certeza?" } } %>
   <% end %>
 </div>

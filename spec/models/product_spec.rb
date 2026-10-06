@@ -197,6 +197,27 @@ RSpec.describe Product, type: :model do
     end
   end
 
+  # The engine names no Org class: an owner is an id, whatever the app's is.
+  describe "owners" do
+    it "needs no Org class to read, scan or save" do
+      hide_const("Org")
+      drink = Drink.create!(name: "Brahma", code: "7891991010023")
+      own = Drink.create!(name: "Brahma do bar", code: "7891991010023", org_id: "shop-1")
+
+      expect(Product.shared.to_a).to eq([ drink ])
+      expect(Product.for("shop-1").to_a).to contain_exactly(drink, own)
+      expect(Product.lookup("7891991010023", org: "shop-1")).to eq(own)
+    end
+
+    it "takes an owner as a document or as its id" do
+      org = Org.create!(name: "Bar do Zé")
+      own = Drink.create!(name: "Caipirinha", org_id: org.id)
+
+      expect(Product.of(org).to_a).to eq([ own ])
+      expect(Product.of(org.id).to_a).to eq([ own ])
+    end
+  end
+
   describe "code per owner" do
     it "lets an org file its own product under a barcode the shared catalogue has" do
       Product.create!(name: "Brahma", code: "7891991010023")

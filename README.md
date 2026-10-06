@@ -18,8 +18,8 @@ the whole catalogue and `product.drink?` asks what a row is.
 
 ## Who owns a product
 
-    org: nil    the shared catalogue — an admin curates it, every org selects it
-    org: <Org>  that org's own: a recipe ("Caipirinha da Casa"), theirs alone
+    org_id: nil   the shared catalogue — an admin curates it, every org selects it
+    org_id: <id>  that owner's own: a recipe ("Caipirinha da Casa"), theirs alone
 
 ```ruby
 Product.shared     # everybody's
@@ -28,6 +28,9 @@ Product.for(org)   # what that org may offer: shared + its own
 ```
 
 `Product.for(nil)` is the shared catalogue, so a picker can always call it.
+An owner is an id, not an association: the engine names no `Org` class, so
+whatever owns things in your app (an org, a shop, a user) does. An app with an
+`Org` model may add `Product.belongs_to :org` itself.
 
 ### Your app decides
 
@@ -40,7 +43,7 @@ Anything else is yours to override:
   who may come in             before_action                        whoever ApplicationController lets in
   which products              ProductsController#products          Product.shared
   a brand's page lists        BrandsController#products            Product.shared
-  what a product form writes  ProductsController#product_params    every field but org_id
+  what a product form writes  ProductsController#product_params    the form's fields, never org_id
   a page                      app/views/products/*, brands/*       the engine's
   why a save was refused      app/views/openmarket/_errors         the engine's
 ```
@@ -51,7 +54,7 @@ write:
 
 ```ruby
 class Bar::ProductsController < ProductsController
-  before_action :authenticate_user!
+  prepend_before_action :authenticate_user! # before the engine's set_product reads `products`
 
   private
 
@@ -72,7 +75,8 @@ end
 The engine's pages link with `products_path` and friends, so one controller
 answers to those names. A scan through `products` finds an org's own before
 the shared one with the same barcode. The specs run this very subclass
-(`spec/dummy/app/controllers/bar_products_controller.rb`). For what needs no
+(`spec/dummy/app/controllers/bar_products_controller.rb`), at /bar/products
+beside the engine's own, over JSON. For what needs no
 `super` — a `before_action`, `products` — reopening the engine's controller
 with `class_eval` in a `config.to_prepare` block works too.
 

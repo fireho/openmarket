@@ -63,9 +63,9 @@
   </div>
   <div class="mt-4">
     <p class="text-gray-500 text-sm">
-      Total de itens: <%= Product.count %>
-      (Bebidas: <%= Drink.count %>,
-      Comidas: <%= Food.count %>)
+      Total de itens: <%= products.count %>
+      (Bebidas: <%= products.where(_type: "Drink").count %>,
+      Comidas: <%= products.where(_type: "Food").count %>)
     </p>
   </div>
 </div>

@@ -8,8 +8,8 @@ RSpec.describe "What an app overrides", type: :request do
   let!(:other)  { Org.create!(name: "Outro Bar") }
   let!(:brand)  { Brand.create!(name: "Brahma") }
   let!(:brahma) { Drink.create!(name: "Brahma Chopp", code: "7891991010023", brand: brand) }
-  let!(:house)  { Drink.create!(name: "Caipirinha da Casa", code: "HOUSE-1", org: ze, brand: brand) }
-  let!(:theirs) { Drink.create!(name: "Caipirinha do Outro", code: "HOUSE-2", org: other) }
+  let!(:house)  { Drink.create!(name: "Caipirinha da Casa", code: "HOUSE-1", org_id: ze.id, brand: brand) }
+  let!(:theirs) { Drink.create!(name: "Caipirinha do Outro", code: "HOUSE-2", org_id: other.id) }
 
   def codes = response.parsed_body.map { |row| row["code"] }
 
@@ -36,6 +36,20 @@ RSpec.describe "What an app overrides", type: :request do
       get brand_url(brand, format: :json)
 
       expect(response.parsed_body["products"].map { |row| row["code"] }).to eq([ brahma.code ])
+    end
+
+    it "counts the shelf it lists" do
+      get products_url
+
+      expect(response.body).to include("Total de itens: 1")
+    end
+
+    it "offers no Delete for a brand whose products it does not list" do
+      kept = Brand.create!(name: "Da Casa")
+      Drink.create!(name: "Batida", org_id: ze.id, brand: kept)
+      get brand_url(kept)
+
+      expect(response.body).not_to include("Excluir")
     end
 
     it "takes no org from a form" do
@@ -89,7 +103,7 @@ RSpec.describe "What an app overrides", type: :request do
 
   describe "a scan through `products`" do
     it "finds the app's own before the shared one" do
-      own = Drink.create!(name: "Brahma da Casa", code: brahma.code, org: ze)
+      own = Drink.create!(name: "Brahma da Casa", code: brahma.code, org_id: ze.id)
       get lookup_bar_products_url(code: "7 891991 010023", format: :json)
 
       expect(response.parsed_body["id"]).to eq(own.id.to_s)

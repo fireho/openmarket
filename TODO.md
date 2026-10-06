@@ -3,7 +3,8 @@
 ## Holes
 
 - [ ] FIXME views speak pt only (Nova Bebida, Salvar, Selecione…), the flash en only: every string to the locale files, where an app overrides a word app/views/products/_form.html.erb:1
-- [ ] FIXME gemspec declares rails only; the models need mongoid and strip_attributes, the views jbuilder, the controllers pagy openmarket.gemspec:23
+- [ ] FIXME gemspec declares rails only; the models need mongoid, strip_attributes and money (acl_price), the views jbuilder, the controllers pagy openmarket.gemspec:23
+- [ ] FIXME no page links with pagy 43: the views ask for `pagy_nav`, which it no longer has (`@pagy.series_nav`) app/views/products/index.html.erb:62
 - [ ] FIXME `isolate_namespace` routes to Openmarket::ProductsController, which does not exist: apps draw the routes by hand (spec/dummy/config/routes.rb) lib/openmarket/engine.rb:9
 - [ ] HACK Enumere stand-in for the host specs: delete when Enumere is published, depend on it spec/dummy/app/models/concerns/enumere.rb:1
 
