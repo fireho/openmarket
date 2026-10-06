@@ -159,8 +159,23 @@ made a code unique across orgs, create the indexes, and fill `tokens`.
 
 **Load it** from the published dump — no scraping needed:
 
-    bin/rails openmarket:restore                    # the latest GitHub release
+    bin/rails openmarket:restore                    # the latest GitHub release, else the gem's snapshot
     bin/rails openmarket:restore FILE=openmarket.ndjson.gz OVERWRITE=1
+
+**The snapshot.** The gem ships one: `db/openmarket.ndjson.gz` (4.6MB,
+`Openmarket::SNAPSHOT`), built with `bin/build-dump` from the Open Food Facts
+export of 2026-10-05. 108,174 drinks and 21,457 brands, from 150-odd countries:
+
+    juice 26,341   soda 19,973   water 16,229   wine 15,952   beer 12,724
+    energy 5,122   tea 4,971     liquor 2,207   cider 1,381   mixed 753
+    whisky 670     rum 652       vodka 527      gin 388       cognac 174
+    tequila 91     cachaça 19
+
+88% have a picture, 78% a brand, 69% an ABV, 54% a size. Brazil is thin in
+Open Food Facts (433 drinks: Brahma, Skol, Guaraná Antarctica, 51...), so a bar
+there will still add its own — and every product scanned and corrected is one
+more for the next release. Monthly releases replace the snapshot; it is
+refreshed in the gem now and then, not every month.
 
 **Publish it.** A GitHub Action (`.github/workflows/dump.yml`) rebuilds the dump
 from Open Food Facts on the 2nd of every month — no Mongo, no Rails — and
