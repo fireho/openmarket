@@ -37,7 +37,7 @@ RSpec.describe Openmarket::OpenFoodFacts do
     end
 
     it "keeps only the taxonomy's own countries and categories" do
-      row = brahma.merge("countries_tags" => %w[ en:brazil fr:France\ -\ La\ Réunion es:mundial ],
+      row = brahma.merge("countries_tags" => %w[ en:brazil fr:France\ -\ La\ Réunion es:mundial en:Scotland ],
                          "categories_tags" => %w[ en:beverages en:beers fr:bieres-artisanales ])
       expect(described_class.map(row)[:attrs]).to include(countries: %w[ brazil ], tags: %w[ beverages beers ])
     end

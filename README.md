@@ -162,9 +162,10 @@ made a code unique across orgs, create the indexes, and fill `tokens`.
     bin/rails openmarket:restore                    # the latest GitHub release, else the gem's snapshot
     bin/rails openmarket:restore FILE=openmarket.ndjson.gz OVERWRITE=1
 
-**The snapshot.** The gem ships one: `db/openmarket.ndjson.gz` (4.6MB,
+**The snapshot.** The gem ships one: `db/openmarket.ndjson.gz` (4.5MB,
 `Openmarket::SNAPSHOT`), built with `bin/build-dump` from the Open Food Facts
-export of 2026-10-05. 108,174 drinks and 21,457 brands, from 150-odd countries:
+export of 2026-10-05. 108,174 drinks and 21,457 brands, sold in 220 countries
+and territories (France, the US and Germany lead):
 
     juice 26,341   soda 19,973   water 16,229   wine 15,952   beer 12,724
     energy 5,122   tea 4,971     liquor 2,207   cider 1,381   mixed 753
