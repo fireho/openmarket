@@ -1,4 +1,5 @@
 require "fileutils"
+require "shellwords"
 
 namespace :openmarket do
   release = "https://github.com/fireho/openmarket/releases/latest/download/openmarket.ndjson.gz"
@@ -64,6 +65,35 @@ namespace :openmarket do
 
       puts "Done: #{openmarket_counts(importer.stats)}"
       importer.errors.first(10).each { |error| warn "  invalid #{error}" }
+    end
+
+    desc "Fill in what Wikidata (CC0) knows — id, country, site, logo — on brands without a wikidata id. LIMIT=500 AFTER=name (go on after that brand)"
+    task wikidata: :environment do
+      openmarket_indexes
+      # In name order, so a run that stops can go on AFTER the last brand it
+      # got to. A brand without a key is a spelling of another, waiting to be
+      # merged (named just above): it would not save, so it is not asked about.
+      brands = ::Brand.where(key: { "$ne" => nil }, wikidata: { "$in" => [ nil, "" ] }).order_by(name: 1)
+      brands = brands.where(name: { "$gt" => ENV["AFTER"] }) if ENV["AFTER"].present?
+      limit = ENV["LIMIT"].presence&.to_i
+      brands = brands.limit(limit) if limit
+      brands = brands.to_a
+
+      filler = Openmarket::Wikidata::Filler.new(progress: openmarket_progress("wikidata"))
+      begin
+        filler.call(brands)
+      rescue Openmarket::Wikidata::Unavailable => e
+        stopped = e.message
+      end
+
+      filler.errors.each { |error| warn "  #{error}" }
+      # What was written is saved. A brand Wikidata does not know stays blank,
+      # so a run without AFTER would ask about the same ones again.
+      after = filler.last || ENV["AFTER"].presence
+      go_on = " Go on with AFTER=#{Shellwords.escape(after)}" if after && (stopped || brands.size == limit)
+      summary = "#{openmarket_counts(filler.stats).presence || 'none'} of #{brands.size} brands.#{go_on}"
+      abort "Stopped: #{stopped}\n#{summary}" if stopped
+      puts "Done: #{summary}"
     end
   end
 end

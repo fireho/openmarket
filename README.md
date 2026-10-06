@@ -54,7 +54,8 @@ Product.search("antar orig")   # => Cerveja Antártica Original
 What someone typing wants: every word the start of a word in the product's
 names (any language) or its brand's, with accents and case folded away — or
 the start of a code, or the start of a brand's name. Each product keeps those
-folded words in `tokens` (refreshed on save), so every clause is a prefix on
+folded words in `tokens` (refreshed on save, and for all of a brand's
+products when the brand is renamed), so every clause is a prefix on
 an index and stays fast on a big catalogue. The term is text, never a regexp.
 
 A product's `name` falls back to any language it has: a row imported as
@@ -78,6 +79,50 @@ barcode (`lookup(code, org:)` gives the org's own first). Over HTTP:
     GET /products/lookup/7891991010023.json    one product, 404 if the catalogue lacks it
     GET /products/search.json?q=brah           up to 20, name, code or brand
 
+## Brands
+
+```ruby
+Brand.search("antar")          # => Antártica — the start of a name, accents and case aside, in name order
+product.brand_name = "brahma"  # finds Brahma however it is typed, makes it when new; "" takes the brand off
+```
+
+A brand is found by its folded `key`, so "Antártica" and "ANTARTICA " are one
+brand (a BOM or zero-width space pasted at either end is ignored too), and a
+list in name order puts "ambev" among the A's. A brand that still has products
+is not destroyed: move its products first. Blank fields are stored as nothing.
+
+There is a light admin at /brands (list, search, show with its products, edit),
+and the product form takes the brand as a name, suggesting names from the
+catalogue while you type. Over HTTP:
+
+    GET /brands.json?search=amb        brands in name order, 50 a page
+    GET /brands/:id.json               a brand, products_count, its products as links (50 a page, `next`)
+    GET /brands/search.json?q=amb      up to 20, for a typeahead
+    POST/PATCH/DELETE /brands[/:id]    as for products; DELETE is 422 while the brand has products
+
+## Reading a menu
+
+A bar pastes its menu or a distributor's price list instead of typing each item:
+
+```ruby
+Openmarket::Line.parse("Cerveja Patagonia LATA 350ml  R$ 12,90")
+# => { type: "Drink", name: "Cerveja Patagonia", kind: :beer, pack: :can, size: 350, acl: nil, code: nil }
+Openmarket::Line.parse_all(File.read("menu.txt"))  # one hash per product line, with :line, :text and :error
+
+Product.parse("Heineken LN 330")      # => an unsaved Drink: 330 ml, a bottle
+Product.match("Brahma 600ml", org:)   # => the catalogue's Brahma 600 ml, if it has one
+```
+
+It reads pt, es and en: the kind from keywords, the pack (lata, garrafa/LN,
+PET, kit, "6x350ml"), the size (ml for a drink, cc included; g for food), the
+ABV only when written, and a barcode only when it passes its check digit. The
+price is dropped. Whatever the line does not say stays nil and is never
+guessed: "Heineken LN 330" is a 330 ml bottle of no kind, "Café 500g" has no
+type. Between a drink and a dish, the word a small word ties to the other is
+the ingredient: "Picanha ao molho de vinho" is meat, "Batida de amendoim" a
+drink. In `parse_all`, a heading ("Cervejas:", "== Drinks ==") gives its kind
+to the lines under it that name none.
+
 ## The open catalogue
 
 The shared catalogue (`org: nil`) is meant to be public: filled from open
@@ -93,6 +138,20 @@ Re-running refreshes what an import wrote and leaves alone what a person
 corrected: `source` is `"off"` on imported rows, and any edit by a person to
 what a row says (name, code, kind, size...) clears it, so the row is theirs.
 
+**Brands from Wikidata.** What Wikidata knows about a brand fills in what the
+brand lacks: its id (QID), the country it is from, its official site, its logo.
+
+    bin/rails openmarket:import:wikidata                 # every brand without a wikidata id
+    bin/rails openmarket:import:wikidata LIMIT=500       # then AFTER=<the name it printed>
+
+A name meets an item only by an exact label (en, pt, es, fr, de, it), and only
+an item that is a brand. A name two items answer to is left out: a wrong QID
+in an open catalogue spreads, a missing one is only missing. Only blank fields
+are written, so a site or a logo a person set stays theirs. Brands go in name
+order, 100 to a query, a second apart; a query Wikidata fails on is reported
+and passed over, and being throttled stops the run with the AFTER= to go on
+from.
+
 The import and restore tasks first bring an existing database up to date:
 they unset stored null codes, give old brands their folded `key` (warning
 about two spellings of one name, to merge by hand), drop the old index that
@@ -103,8 +162,27 @@ made a code unique across orgs, create the indexes, and fill `tokens`.
     bin/rails openmarket:restore                    # the latest GitHub release
     bin/rails openmarket:restore FILE=openmarket.ndjson.gz OVERWRITE=1
 
-**Publish it** (`bin/rails openmarket:dump`, then attach `tmp/openmarket.ndjson.gz`
-to a GitHub release). The dump is NDJSON — readable without Mongo:
+**Publish it.** A GitHub Action (`.github/workflows/dump.yml`) rebuilds the dump
+from Open Food Facts on the 2nd of every month — no Mongo, no Rails — and
+publishes it as a release (`data-YYYY-MM-DD`, marked latest), which is what
+`openmarket:restore` downloads. Run it by hand from the Actions tab too; a run
+limited to some countries or to N drinks is a prerelease, never the latest.
+Locally:
+
+    curl -fsSL https://static.openfoodfacts.org/data/openfoodfacts-products.jsonl.gz \
+      | bin/build-dump --off - --wikidata --out openmarket.ndjson.gz
+    bin/build-dump --off openfoodfacts-products.jsonl.gz --countries en:brazil --limit 1000
+
+`bin/build-dump` needs only Ruby's standard library and streams the ~13GB
+export without storing it. (static.openfoodfacts.org redirects to their S3
+bucket, `https://openfoodfacts-ds.s3.eu-west-3.amazonaws.com/openfoodfacts-products.jsonl.gz`,
+which also works where the first host is blocked.) Two rows with one barcode
+(a UPC-E and its UPC-A) become one product, and the row that says more is kept.
+A brand is named the way most of its products spell it. `--wikidata` fills in
+brands from Wikidata; if that fails it warns and builds anyway. `bin/rails
+openmarket:dump` still writes a host's own shared catalogue.
+
+The dump is NDJSON — readable without Mongo:
 
     zcat openmarket.ndjson.gz | jq -c 'select(.code == "7891991010023")'
 
@@ -124,6 +202,10 @@ dump built from it is published under the ODbL too, with attribution (the dump's
 header carries the notice). Product images are not copied — `image` is a link to
 where they live, under their own license.
 
+Brand facts from [Wikidata](https://www.wikidata.org) (QID, country, site) are
+CC0, so they travel in the dump as they are. A `logo` is a link to its file on
+Wikimedia Commons, under that file's own license, never a copy.
+
 ## Installation
 
 Rubygems already has an SMS gem named `openmarket`. Ours is git:
@@ -137,7 +219,9 @@ Needs mongoid and, for the enums, fire's `Enumere`. Locally: `bundle config set 
 ## Specs
 
 `bin/rspec spec/lib` runs the plain-Ruby specs — barcodes, the Open Food Facts
-mapper, the dump format, the importer on fake models — with no Rails and no Mongo.
+mapper, the dump format and its builder, the importer on fake models, the menu
+reader, the Wikidata client on a made-up answer — with no Rails and no Mongo.
+GitHub Actions runs them on every push and pull request (`.github/workflows/specs.yml`).
 
 The model and request specs (`spec/models`, `spec/requests`) need Mongo and the
 fabricators here (`spec/fabricators/product_fabricator.rb`): one `:product`, with

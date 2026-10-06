@@ -88,7 +88,8 @@ module Openmarket
     # name. One item comes back as many rows — a row per label, country, site
     # and logo — so rows are gathered by the name they matched, folded.
     def records(json)
-      data = json.is_a?(String) ? JSON.parse(json) : json
+      # An HTTP body or a file can come tagged binary or ASCII: JSON is UTF-8.
+      data = json.is_a?(String) ? JSON.parse(json.dup.force_encoding(Encoding::UTF_8).scrub) : json
       matches = Array(data.dig("results", "bindings")).filter_map do |row|
         qid = value(row, "item")&.[](ENTITY, 1)
         label = value(row, "label")

@@ -72,7 +72,7 @@ pt:
         kind: Tipo
         size: Tamanho (g)
         kind_enums:
-          fast: Rápido
+          fast: Lanche Rápido
           burger: Hambúrguer
           pizza: Pizza
           pasta: Massa

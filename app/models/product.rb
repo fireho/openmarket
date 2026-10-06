@@ -51,7 +51,8 @@ class Product
     end
   end
 
-  before_save { self.source = nil if source && !importing && edited? }
+  # Only an edit: a row created with a source (a restore, a console) keeps it.
+  before_update { self.source = nil if source && !importing && edited? }
   before_save { self.tokens = tokenize }
 
   scope :shared, -> { where(org_id: nil) }
@@ -115,6 +116,28 @@ class Product
     clauses = [ { code: /\A#{Regexp.escape(text.delete(' '))}/ }, { brand_id: { "$in" => brands } } ]
     clauses << { tokens: { "$all" => words.map { |word| /\A#{Regexp.escape(word)}/ } } } if words.any?
     any_of(*clauses)
+  end
+
+  # A written line — "Cerveja Patagonia LATA 350ml  R$ 12,90" — as an unsaved
+  # Drink or Food, or nil when the line says neither. See Openmarket::Line.
+  def self.parse(line)
+    found = Openmarket::Line.parse(line)
+    klass = { "Drink" => Drink, "Food" => Food }[found[:type]] or return
+    keys = klass == Drink ? %i[ name code kind pack size acl ] : %i[ name code kind size ]
+    klass.new(found.slice(*keys).compact)
+  end
+
+  # The product a written line means, if the catalogue has it: by its barcode
+  # when the line carries one, else by its words and size. A bar pasting
+  # "Brahma 600ml" gets the catalogue's Brahma, not a copy of it.
+  def self.match(line, org: nil)
+    found = Openmarket::Line.parse(line)
+    return lookup(found[:code], org: org) if found[:code]
+    return if found[:name].blank?
+
+    scope = self.for(org).search(found[:name])
+    scope = scope.where(size: found[:size]) if found[:size]
+    scope.order_by(org_id: -1).first
   end
 
   # Rows saved before `tokens` existed get theirs, without counting as edits.

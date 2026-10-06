@@ -310,4 +310,40 @@ RSpec.describe Product, type: :model do
       expect(Product.search("BEER").count).to eq(1)
     end
   end
+  describe ".parse" do
+    it "reads a menu line into an unsaved drink" do
+      drink = Product.parse("Cerveja Patagonia LATA 350ml  R$ 12,90")
+
+      expect(drink).to be_a(Drink)
+      expect(drink).to be_new_record
+      expect(drink).to have_attributes(name: "Cerveja Patagonia", size: 350)
+      expect(drink.kind.to_s).to eq("beer")
+      expect(drink.pack.to_s).to eq("can")
+    end
+
+    it "reads food by its weight" do
+      expect(Product.parse("Porção de batata frita 400g")).to be_a(Food)
+    end
+
+    it "is nil for a line that says neither" do
+      expect(Product.parse("Café 500g")).to be_nil
+      expect(Product.parse("")).to be_nil
+    end
+  end
+
+  describe ".match" do
+    let!(:brahma) { Drink.create!(name: "Cerveja Brahma Chopp", code: "7891991010023", size: 350) }
+
+    it "finds the catalogue's product by the barcode on the line" do
+      expect(Product.match("Brahma lata 7891991010023")).to eq(brahma)
+    end
+
+    it "finds it by its words and size" do
+      expect(Product.match("Brahma Chopp 350ml")).to eq(brahma)
+    end
+
+    it "does not take another size for it" do
+      expect(Product.match("Brahma Chopp 600ml")).to be_nil
+    end
+  end
 end

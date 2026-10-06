@@ -82,7 +82,7 @@
   <div class="inline"><%= form.submit "Salvar", class: "btn btn-primary" %></div>
 <% end %>
 <% if !@product.new_record? %>
-  <%= link_to "Excluir", @product, method: :delete, class: "btn btn-danger", confirm: "Tem certeza?" %>
+  <%= button_to "Excluir", product_path(@product), method: :delete, class: "btn btn-danger", form: { class: "inline", data: { turbo_confirm: "Tem certeza?" } } %>
 <% end %>
 <script>
   function toggleTypeFields() {

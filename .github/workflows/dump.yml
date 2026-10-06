@@ -42,15 +42,17 @@ jobs:
         with:
           ruby-version: "3.3"
 
-      # Streamed: their export is ~8GB gzipped and never lands on disk. `shell:
-      # bash` means pipefail, so a broken download fails the build.
+      # Streamed: their export is ~13GB gzipped and never lands on disk. `shell:
+      # bash` means pipefail, so a broken download fails the build. With a
+      # limit, build-dump stops reading early and curl exits 23 (it could not
+      # write): that one exit is fine, and only on curl's side of the pipe.
       - name: Build
         shell: bash
         run: |
           args=()
           if [ -n "$COUNTRIES" ]; then args+=(--countries "$COUNTRIES"); fi
           if [ -n "$LIMIT" ]; then args+=(--limit "$LIMIT"); fi
-          curl -fsSL "$OFF_URL" | bin/build-dump --off - --wikidata --out openmarket.ndjson.gz "${args[@]}"
+          { curl -fsSL "$OFF_URL" || [ $? -eq 23 ]; } | bin/build-dump --off - --wikidata --out openmarket.ndjson.gz "${args[@]}"
 
       # A trial (countries or limit) is a prerelease, never latest: restore
       # keeps loading the last whole build.
@@ -86,7 +88,8 @@ jobs:
           published under the ODbL too: use it, share it, adapt it, and keep it open and attributed to Open Food Facts.
 
           Product images are not in the file: \`image\` links to where each picture lives, under its own license.
-          Brand details (Wikidata id, country, site, logo) come from [Wikidata](https://www.wikidata.org).
+          Brand details (Wikidata id, country, site) come from [Wikidata](https://www.wikidata.org), under CC0;
+          a \`logo\` links to its file on Wikimedia Commons, under that file's own license.
           EOF
 
           if gh release view "$tag" > /dev/null 2>&1; then

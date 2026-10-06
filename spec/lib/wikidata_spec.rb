@@ -4,7 +4,7 @@ require "openmarket/wikidata"
 
 RSpec.describe Openmarket::Wikidata do
   # Made up, in the shape of a real answer: see its _comment.
-  let(:answer) { File.read(File.expand_path("../fixtures/wikidata/brands.json", __dir__)) }
+  let(:answer) { File.read(File.expand_path("../fixtures/wikidata/brands.json", __dir__), encoding: "UTF-8") }
   let(:nothing) { JSON.generate("head" => { "vars" => [] }, "results" => { "bindings" => [] }) }
 
   def reply(code, body = nothing, retry_after: nil)

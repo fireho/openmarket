@@ -313,7 +313,7 @@ RSpec.describe Openmarket::Builder do
     end
 
     it "publish the file the restore task downloads" do
-      url = File.read(File.join(root, "lib/tasks/openmarket_tasks.rake"))[%r{https://github\.com/\S+/releases/latest/download/[\w.]+}]
+      url = File.read(File.join(root, "lib/tasks/openmarket_tasks.rake"), encoding: "UTF-8")[%r{https://github\.com/\S+/releases/latest/download/[\w.]+}]
       steps = workflow("dump.yml").dig("jobs", "dump", "steps").filter_map { |step| step["run"] }.join("\n")
 
       expect(url).to end_with("/openmarket.ndjson.gz")

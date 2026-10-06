@@ -25,10 +25,14 @@ class ProductsController < ApplicationController
     render :index, formats: :json
   end
 
+  # The shapes a form may ask for. A name from the request never becomes a
+  # class by itself: `constantize` on user input reaches any class in the app.
+  TYPES = { "Drink" => Drink, "Food" => Food }.freeze
+
   # GET /products/new
   def new
-    @product = params[:type]&.classify&.constantize&.new || Product.new
-    @product.type = params[:type] if params[:type].in?([ "Drink", "Food" ])
+    @product = TYPES.fetch(params[:type].to_s, Product).new
+    @product.type = params[:type] if TYPES.key?(params[:type])
   end
 
   # GET /products/1/edit
@@ -37,9 +41,9 @@ class ProductsController < ApplicationController
 
   # POST /products or /products.json
   def create
-    product_class = product_params[:type]&.classify&.constantize || Product
+    product_class = TYPES.fetch(product_params[:type].to_s, Product)
     @product = product_class.new(product_params.except(:type))
-    @product.type = product_params[:type] if product_params[:type].in?([ "Drink", "Food" ])
+    @product.type = product_params[:type] if TYPES.key?(product_params[:type])
 
     respond_to do |format|
       if @product.save
