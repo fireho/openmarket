@@ -1,10 +1,17 @@
 require "standalone_helper"
+require "support/fake_models"
 require "openmarket/wikidata"
 
 RSpec.describe Openmarket::Wikidata do
   # Made up, in the shape of a real answer: see its _comment.
   let(:answer) { File.read(File.expand_path("../fixtures/wikidata/brands.json", __dir__)) }
   let(:nothing) { JSON.generate("head" => { "vars" => [] }, "results" => { "bindings" => [] }) }
+
+  def reply(code, body = nothing, retry_after: nil)
+    instance_double(Net::HTTPResponse, code: code.to_s, body: body).tap do |response|
+      allow(response).to receive(:[]).with("Retry-After").and_return(retry_after)
+    end
+  end
 
   describe ".query" do
     it "asks for each name in each language" do
@@ -100,17 +107,13 @@ RSpec.describe Openmarket::Wikidata do
   describe ".fetch" do
     let(:calls) { [] }
 
-    def reply(code, body = nothing, retry_after: nil)
-      instance_double(Net::HTTPResponse, code: code.to_s, body: body).tap do |response|
-        allow(response).to receive(:[]).with("Retry-After").and_return(retry_after)
-      end
-    end
-
-    # Answers in turn, remembering what it was asked.
+    # Answers in turn, remembering what it was asked. An error class in the
+    # turns is the network failing.
     def http(*replies)
       ->(uri, body, headers) do
         calls << { uri: uri, query: URI.decode_www_form(body).to_h["query"], headers: headers }
-        replies.shift or raise "asked more than expected"
+        found = replies.shift or raise "asked more than expected"
+        found.is_a?(Class) ? raise(found) : found
       end
     end
 
@@ -188,30 +191,53 @@ RSpec.describe Openmarket::Wikidata do
       expect(described_class).to have_received(:sleep).with(10).ordered
     end
 
-    it "gives up after a few tries" do
+    it "gives up after a few tries: Wikidata is unavailable" do
       replies = Array.new(4) { reply(429, "", retry_after: "1") }
 
       expect { described_class.fetch([ "Acme Cola" ], http: http(*replies)).to_a }
-        .to raise_error(Openmarket::Wikidata::Error, /429/)
+        .to raise_error(Openmarket::Wikidata::Unavailable, /429/)
       expect(calls.size).to eq(4)
     end
 
     it "will not wait for hours" do
       expect { described_class.fetch([ "Acme Cola" ], http: http(reply(429, "", retry_after: "3600"))).to_a }
-        .to raise_error(Openmarket::Wikidata::Error, /3600s/)
+        .to raise_error(Openmarket::Wikidata::Unavailable, /3600s/)
       expect(described_class).not_to have_received(:sleep)
     end
 
     it "stops on any other failure, saying what came back" do
+      # An Error, not Unavailable: it was this query that failed.
       expect { described_class.fetch([ "Acme Cola" ], http: http(reply(400, "MalformedQueryException: oops\nat ..."))).to_a }
-        .to raise_error(Openmarket::Wikidata::Error, "Wikidata answered 400: MalformedQueryException: oops")
+        .to raise_error(an_instance_of(Openmarket::Wikidata::Error), "Wikidata answered 400: MalformedQueryException: oops")
     end
 
-    it "posts with Net::HTTP when given no client" do
-      allow(Net::HTTP).to receive(:post).and_return(reply(200))
+    it "asks again when the network fails" do
+      records = described_class.fetch([ "Acme Cola" ], http: http(Net::ReadTimeout, reply(200, answer))).to_a
+
+      expect(calls.size).to eq(2)
+      expect(described_class).to have_received(:sleep).with(5).once
+      expect(records).not_to be_empty
+    end
+
+    it "gives up when the network keeps failing, as it does when throttled" do
+      failures = [ Net::OpenTimeout, Errno::ECONNRESET, SocketError, Net::ReadTimeout ]
+
+      expect { described_class.fetch([ "Acme Cola" ], http: http(*failures)).to_a }
+        .to raise_error(Openmarket::Wikidata::Unavailable, "Wikidata did not answer: Net::ReadTimeout")
+      expect(calls.size).to eq(4)
+      expect(described_class).to have_received(:sleep).with(5).ordered
+      expect(described_class).to have_received(:sleep).with(10).ordered
+      expect(described_class).to have_received(:sleep).with(20).ordered
+    end
+
+    it "posts with Net::HTTP when given no client, waiting longer than the service's own 60s" do
+      connection = instance_double(Net::HTTP)
+      allow(connection).to receive(:post).and_return(reply(200))
+      allow(Net::HTTP).to receive(:start) { |*_args, **_options, &block| block.call(connection) }
       described_class.fetch([ "Acme Cola" ]).to_a
 
-      expect(Net::HTTP).to have_received(:post)
+      expect(Net::HTTP).to have_received(:start).with("query.wikidata.org", 443, use_ssl: true, read_timeout: 75)
+      expect(connection).to have_received(:post)
         .with(URI("https://query.wikidata.org/sparql"), /\Aquery=/, hash_including("User-Agent" => described_class.user_agent))
     end
   end
@@ -240,6 +266,132 @@ RSpec.describe Openmarket::Wikidata do
     it "is nil for nothing, or for nonsense" do
       expect(described_class.retry_after(nil)).to be_nil
       expect(described_class.retry_after("soon")).to be_nil
+    end
+  end
+
+  describe Openmarket::Wikidata::Filler do
+    subject(:filler) { described_class.new(batch: 2, http: wikidata) }
+
+    # A pretend Wikidata, as made up as the fixture: it answers from `known`,
+    # and with `failing` (a code) for any query that asks about `fails_on`.
+    let(:known) do
+      {
+        "Cerveja Exemplo" => row("Cerveja Exemplo", "Q900000201", site: "https://cerveja-exemplo.example/", iso: "BR"),
+        "Ccc" => row("Ccc", "Q900000203"), "Eee" => row("Eee", "Q900000205")
+      }
+    end
+    let(:fails_on) { nil }
+    let(:failing) { 500 }
+    let(:asked) { [] }
+    let(:wikidata) do
+      lambda do |_uri, body, _headers|
+        names = URI.decode_www_form(body).to_h["query"].scan(/"([^"]*)"@en/).flatten
+        asked << names
+        if names.include?(fails_on) then reply(failing, "java.util.concurrent.TimeoutException\n\tat ...")
+        else reply(200, JSON.generate("results" => { "bindings" => known.values_at(*names).compact }))
+        end
+      end
+    end
+
+    def row(label, qid, site: nil, iso: nil)
+      {
+        "item" => { "value" => "http://www.wikidata.org/entity/#{qid}" }, "label" => { "value" => label },
+        "country" => ({ "value" => "http://www.wikidata.org/entity/Q900000299" } if iso),
+        "iso" => ({ "value" => iso } if iso), "site" => ({ "value" => site } if site)
+      }.compact
+    end
+
+    def brand(name, **attrs) = Fake::Brand.new(name: name, **attrs).tap(&:save)
+    def brands(*names) = names.map { |name| brand(name) }
+
+    before do
+      Fake.reset!
+      allow(Openmarket::Wikidata).to receive(:sleep)
+      allow(filler).to receive(:sleep)
+    end
+
+    it "writes what Wikidata knows on the brand" do
+      exemplo = brand("Cerveja Exemplo")
+      filler.call([ exemplo ])
+
+      expect(exemplo).to have_attributes(wikidata: "Q900000201", country: "BR", site: "https://cerveja-exemplo.example/")
+      expect(filler.stats).to eq(found: 1)
+    end
+
+    it "keeps what a person set" do
+      exemplo = brand("Cerveja Exemplo", site: "https://hand-set.example/")
+      filler.call([ exemplo ])
+
+      expect(exemplo).to have_attributes(wikidata: "Q900000201", country: "BR", site: "https://hand-set.example/")
+    end
+
+    it "writes on the brand it was given, never on another its name finds" do
+      # A spelling a person has yet to merge: its name finds the keyed one.
+      keyed = brand("CERVEJA EXEMPLO", wikidata: "Q111", site: "https://hand-set.example/")
+      spelling = Fake::Brand.legacy("Cerveja Exemplo")
+      expect(Fake::Brand.named("Cerveja Exemplo")).to equal(keyed)
+
+      filler.call([ spelling ])
+
+      expect(keyed).to have_attributes(wikidata: "Q111", site: "https://hand-set.example/", country: nil)
+      expect(filler.stats).to eq(invalid: 1) # it has no key of its own to save with
+      expect(filler.errors).to eq([ "Cerveja Exemplo: Key is taken" ])
+    end
+
+    it "takes nothing from another item than the one a brand already is" do
+      exemplo = brand("Cerveja Exemplo", wikidata: "Q900000999")
+      filler.call([ exemplo ])
+
+      expect(exemplo).to have_attributes(wikidata: "Q900000999", country: nil, site: nil)
+      expect(filler.stats).to eq(missing: 1)
+    end
+
+    it "asks a batch at a time, pausing between them, and says how far it got" do
+      all = brands("Aaa", "Bbb", "Ccc", "Ddd", "Eee")
+      filler.call(all)
+
+      expect(asked).to eq([ %w[ Aaa Bbb ], %w[ Ccc Ddd ], %w[ Eee ] ])
+      expect(filler).to have_received(:sleep).with(1.0).twice
+      expect(filler.stats).to eq(found: 2, missing: 3)
+      expect(filler.last).to eq("Eee")
+    end
+
+    context "when Wikidata fails on a batch" do
+      let(:fails_on) { "Ccc" }
+
+      it "passes it over and goes on with the rest" do
+        all = brands("Aaa", "Bbb", "Ccc", "Ddd", "Eee")
+        filler.call(all)
+
+        expect(asked).to eq([ %w[ Aaa Bbb ], %w[ Ccc Ddd ], %w[ Eee ] ])
+        expect(all.last.wikidata).to eq("Q900000205")
+        expect(filler.stats).to eq(missing: 2, skipped: 2, found: 1)
+        expect(filler.errors).to eq([ "skipped Ccc .. Ddd: Wikidata answered 500: java.util.concurrent.TimeoutException" ])
+        expect(filler.last).to eq("Eee")
+      end
+    end
+
+    context "when Wikidata is unavailable" do
+      let(:known) { { "Bbb" => row("Bbb", "Q900000202") } }
+      let(:fails_on) { "Ccc" }
+      let(:failing) { 429 }
+
+      it "stops, keeping what it wrote and the last brand it got to" do
+        all = brands("Aaa", "Bbb", "Ccc", "Ddd", "Eee")
+
+        expect { filler.call(all) }.to raise_error(Openmarket::Wikidata::Unavailable, /429/)
+        expect(all[1].wikidata).to eq("Q900000202")
+        expect(filler.stats).to eq(missing: 1, found: 1)
+        expect(filler.last).to eq("Bbb")
+        expect(asked).not_to include(%w[ Eee ])
+      end
+    end
+
+    it "tells progress after each batch" do
+      heard = []
+      described_class.new(batch: 2, http: wikidata, pause: 0, progress: ->(stats) { heard << stats.dup }).call(brands("Aaa", "Ccc", "Eee"))
+
+      expect(heard).to eq([ { missing: 1, found: 1 }, { missing: 1, found: 2 } ])
     end
   end
 end
