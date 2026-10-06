@@ -21,11 +21,12 @@ module Openmarket
     # The words that name a kind, in pt, es and en, as people write them (they
     # are folded on load). Groups are tried in order: a cocktail before its
     # spirit, a liqueur before its whisky, a beer before the tequila it is
-    # flavoured with, any drink before food, a dish before what is in it.
-    # Inside a group the word that comes first wins: "picanha com fritas" is
-    # meat, "porção de picanha" a snack. A word inside a longer one gives way
-    # to it: "água tônica" is no water, "ice tea" no cocktail. Plurals in -s
-    # come free.
+    # flavoured with, a drink before food ("Chocolate Stout" is a beer), a dish
+    # before what is in it. Inside a group the word that comes first wins:
+    # "picanha com fritas" is meat, "porção de picanha" a snack. A word inside
+    # a longer one gives way to it: "água tônica" is no water, "ice tea" no
+    # cocktail. Plurals in -s come free. Between a drink and a dish, a small
+    # word says which is in which (see LINKS), and a weight says it is food.
     KINDS = [
       [ "Drink", mixed: "caipirinha, caipiroska, caipivodka, batida, mojito, negroni, spritz, daiquiri, sangria, " \
                         "cuba libre, moscow mule, piña colada, gin tônica, gin tonic, fernet con coca, fernet com coca, " \
@@ -63,11 +64,11 @@ module Openmarket
                        "nachos, azeitona, aceitunas, olives, antepasto, antipasto, picada, empanada, coxinha, bolinho, " \
                        "salgadinho, pipoca, pão de alho, onion rings, tábua de frios, isca, frango a passarinho, " \
                        "mandioca frita, aipim frito, wings",
-                meat: "carne, picanha, steak, bife, costela, fraldinha, alcatra, maminha, cupim, churrasco, asado, vacío, " \
-                      "entraña, ribs" ],
+                meat: "carne, picanha, steak, ribeye, bife, costela, costelinha, fraldinha, alcatra, maminha, cupim, " \
+                      "linguiça, churrasco, asado, vacío, entraña, ribs" ],
       # Drinks that none of the kinds fit: still drinks, so "chocolate quente" is no dessert.
       [ "Drink", nil => "café, coffee, cappuccino, espresso, expresso, chocolate quente, hot chocolate, chocolate caliente, " \
-                        "água de coco, coconut water" ]
+                        "água de coco, coconut water, milkshake, milk shake" ]
     ].freeze
 
     # [pattern, rank, type, kind], the longest words first: they claim their
@@ -94,15 +95,17 @@ module Openmarket
     ].map { |pack, number, word| [ pack, number, /#{word}(?:\s*(?:de\s+)?(\d{1,4})(?![\d.,%\p{Alnum}]))?/i ] }.freeze
     DRINK_PACKS = %i[ grf pet ].freeze # nobody bottles a pizza; a can of olives exists
 
-    # Volumes are read as Open Food Facts reads them; weights here. An ounce
-    # is a fluid ounce on a drink and a weight on food.
+    # Volumes are read as Open Food Facts reads them, plus "cc": how Argentina
+    # writes millilitres ("Quilmes 970 cc"). Weights here. An ounce is a fluid
+    # ounce on a drink and a weight on food.
     GRAMS = {
       "g" => 1, "gr" => 1, "grs" => 1, "grama" => 1, "gramas" => 1, "gramo" => 1, "gramos" => 1, "gram" => 1, "grams" => 1,
       "kg" => 1000, "kgs" => 1000, "kilo" => 1000, "kilos" => 1000, "quilo" => 1000, "quilos" => 1000,
       "lb" => 453.592, "lbs" => 453.592, "oz" => 28.3495
     }.freeze
-    MASS_UNIT = /(kgs?|kilos?|quilos?|gramas?|gramos?|grams?|grs?|g|lbs?)\b/i
-    MEASURE = /#{OpenFoodFacts::AMOUNT}\s*(?:#{OpenFoodFacts::UNIT}|#{MASS_UNIT})/i
+    MASS_UNIT = /kgs?|kilos?|quilos?|gramas?|gramos?|grams?|grs?|g|lbs?/i
+    CC = /cc|cm3|cm³/i
+    MEASURE = /#{OpenFoodFacts::AMOUNT}\s*(?:#{OpenFoodFacts::UNIT}|(#{MASS_UNIT}|#{CC})\b)/i
     # "6x350ml", "12 latas de 350 ml", "Pack 12 un 350ml"; and "350 ml x 6".
     # Only a plural or an "x" counts: a "Cachaça 51 Garrafa 965ml" is one bottle.
     EACH = /x|×|\*|latas|latinhas|garrafas|cans|bottles|botellas|un\.?|und\.?|unid\.?|unidades|units/i
@@ -131,9 +134,23 @@ module Openmarket
     # A barcode in the line: 8, 12, 13 or 14 digits that pass the check digit.
     CODE = /(?:\b(?:ean|gtin|c[oó]d(?:igo)?)\.?\s*:?\s*)?(?<![\d.,])(\d{8}(?:\d{4,6})?)(?![\d.,])/i
 
-    # Small words left hanging by a cut: "Lata de Coca-Cola" is a Coca-Cola.
-    LINKS = "de|da|do|das|dos|com|em|of|with|in|con|en|por"
-    DANGLING = /\b(?:#{LINKS})\s*(?=#{CUT})|(?<=#{CUT})\s*(?:#{LINKS})\b/i
+    # Small words that tie a word to the one before it. Between a drink and a
+    # dish, the one tied is what the other is made with: "Batida de amendoim"
+    # is a drink, "Bombom de licor" a sweet. Some say a dish was cooked in the
+    # drink, so "Frango ao vinho" and "Pollo a la cerveza" are dishes even
+    # though no word names one.
+    LINKS = "de|da|do|das|dos|com|con|em|en|na|no|nas|nos|ao|aos|al|a la|por|in|with|of"
+    COOKED_IN = "na|no|nas|nos|ao|aos|al|a la|in"
+    TIED = /(?:\A| )(?:#{LINKS}) \z/ # on folded words
+    COOKED = /(?:\A| )(?:#{COOKED_IN}) \z/
+
+    # A small word a cut leaves hanging. One just before a cut went with what
+    # was cut: "Coca-Cola garrafa de 2L", "Cerveja de 600ml gelada". One just
+    # after a cut goes with what follows ("Água 500ml com gás" is sparkling),
+    # unless nothing comes before it: "Lata de Coca-Cola" is a Coca-Cola.
+    EDGE = /[\s#{SEPARATORS}#{CUT}]/
+    LINK = /\b(?:#{LINKS})\b/i
+    DANGLING = /#{LINK}\s*(?=#{CUT})|\A#{EDGE}*#{CUT}(?:#{EDGE}|#{LINK})*/
 
     module_function
 
@@ -166,13 +183,16 @@ module Openmarket
       end
 
       line, acl = abv(line)
-      hit = kind(line)
-      type, kind = hit
       measured = unit_type(unit)
+      hit = kind(line, weighed: measured == "Food")
+      type, kind = hit
       type ||= "Drink" if acl
       type ||= measured
       type ||= "Drink" if DRINK_PACKS.include?(pack)
-      type = nil if hit && kind.nil? && measured && measured != type # "Café 500g": beans, or a drink?
+      # Nobody weighs a drink: "Café 500g" is beans or a dish, and the line does
+      # not say which. Food is sometimes measured ("Sorvete 1,5 L"): it stays
+      # food, with no size, as its size is in grams.
+      type = kind = nil if type == "Drink" && measured == "Food"
       type, kind = section if hit.nil? && section && [ nil, section.first ].include?(type) && line.match?(/\p{L}/)
       line, acl = abv(line, bare: true) if type == "Drink" && acl.nil?
 
@@ -199,7 +219,7 @@ module Openmarket
         next if line.start_with?("#", "//") || !line.match?(/[\p{L}\p{N}]/)
 
         if heading?(line)
-          section = kind(line)
+          section = heading(line)
           next
         end
 
@@ -210,17 +230,44 @@ module Openmarket
     end
 
     # [type, kind] the words name — kind nil for a drink none of the kinds
-    # fit — or nil when they name nothing.
-    def kind(text)
+    # fit — or nil when they name nothing. A line `weighed` names a dish
+    # rather than the drink in it: "Bombom de licor 200g".
+    def kind(text, weighed: false)
+      found = hits(text)
+      food = found.select { |_, _, type| type == "Food" }
+      found = food if weighed && food.any?
+      untied = found.reject(&:last).map { |hit| hit[2] } # the types named by a word nothing ties
+      best = found.min_by { |rank, at, type, _, tied| [ tied && (untied - [ type ]).any? ? 1 : 0, rank, at ] }
+      best&.values_at(2, 3)
+    end
+
+    # [rank, at, type, kind, tied] for each word that names a kind: its group,
+    # where it is, and whether a small word ties it to the word before. A drink
+    # a dish was cooked in ("ao vinho") stands for that dish, of no kind.
+    def hits(text)
       words = Text.fold(text).split(/[^\p{Alnum}]+/).reject(&:empty?).join(" ")
-      hits = []
+      left = words.dup
+      found = []
       KEYWORDS.each do |pattern, rank, type, kind|
-        words = words.gsub(pattern) do |word|
-          hits << [ rank, $~.begin(0), type, kind ]
+        left = left.gsub(pattern) do |word|
+          at = $~.begin(0)
+          before = words[0, at]
+          if type == "Drink" && before.match?(COOKED) then found << [ KINDS.size, at, "Food", nil, true ]
+          else found << [ rank, at, type, kind, before.match?(TIED) ]
+          end
           " " * word.size
         end
       end
-      hits.min_by { |rank, at, *| [ rank, at ] }&.drop(2)
+      found
+    end
+
+    # What a heading names: its one kind ("Cervejas:"), only its type when it
+    # names more ("Águas e Refrigerantes:" are drinks of no one kind), and
+    # nothing when it names drinks and dishes.
+    def heading(line)
+      named = hits(line).map { |_, _, type, kind, _| [ type, kind ] }.uniq
+      return named.first if named.size <= 1
+      [ named.first.first, nil ] if named.map(&:first).uniq.size == 1
     end
 
     # "Cervejas:", "== Vinhos ==", "**Porções**": a title, with no number in it.
@@ -257,6 +304,7 @@ module Openmarket
       elsif (m = line.match(MEASURE)) then amount, unit, count = m[1], m[2] || m[3], 1
       else return [ line, 1, nil, nil ]
       end
+      unit = "ml" if unit.match?(/\A#{CC}\z/) # a cubic centimetre is a millilitre
       [ "#{m.pre_match}#{CUT}#{m.post_match}".gsub(MEASURE, CUT), [ count, 1 ].max, amount, unit ]
     end
 

@@ -40,6 +40,7 @@ RSpec.describe Openmarket::Line do
         "Heineken LN 330"                           => { type: "Drink", name: "Heineken", pack: :grf, size: 330 },
         "Heineken 0,0% Long Neck 330ml"             => { type: "Drink", name: "Heineken", pack: :grf, size: 330, acl: 0.0 },
         "Água sem gás 500ml"                        => { type: "Drink", name: "Água sem gás", kind: :water, size: 500 },
+        "Água Crystal 500ml com gás R$ 5,00"        => { type: "Drink", name: "Água Crystal com gás", kind: :water, size: 500 },
         "Água tônica Schweppes Lata 350ml"          => { type: "Drink", name: "Água tônica Schweppes", kind: :soda, pack: :can, size: 350 },
         "Coca-Cola Lata 350ml"                      => { type: "Drink", name: "Coca-Cola", kind: :soda, pack: :can, size: 350 },
         "Guaraná Antarctica 2L PET"                 => { type: "Drink", name: "Guaraná Antarctica", kind: :soda, pack: :pet, size: 2000 },
@@ -56,6 +57,9 @@ RSpec.describe Openmarket::Line do
         "Porção de batata frita 400g"               => { type: "Food", name: "Porção de batata frita", kind: :snack, size: 400 },
         "Amendoim japonês 150g"                     => { type: "Food", name: "Amendoim japonês", kind: :snack, size: 150 },
         "Picanha na chapa 500g R$ 89,90"            => { type: "Food", name: "Picanha na chapa", kind: :meat, size: 500 },
+        "Picanha 500g com arroz e farofa"           => { type: "Food", name: "Picanha com arroz e farofa", kind: :meat, size: 500 },
+        "Costelinha na cerveja 500g R$ 49,90"       => { type: "Food", name: "Costelinha na cerveja", kind: :meat, size: 500 },
+        "Isca de peixe na cerveja 400g"             => { type: "Food", name: "Isca de peixe na cerveja", kind: :snack, size: 400 },
         "Hambúrguer artesanal 180g"                 => { type: "Food", name: "Hambúrguer artesanal", kind: :burger, size: 180 },
         "X-Salada R$ 18,00"                         => { type: "Food", name: "X-Salada", kind: :burger },
         "Pizza Calabresa grande R$ 59,90"           => { type: "Food", name: "Pizza Calabresa grande", kind: :pizza },
@@ -68,11 +72,15 @@ RSpec.describe Openmarket::Line do
       reads(
         "Cerveza Quilmes Clásica 1 L $ 1.500" => { type: "Drink", name: "Cerveza Quilmes Clásica", kind: :beer, size: 1000 },
         "Fernet Branca 750 ml $ 9.500"        => { type: "Drink", name: "Fernet Branca", kind: :liquor, size: 750 },
+        "Fernet Branca 750cc $ 9.500"         => { type: "Drink", name: "Fernet Branca", kind: :liquor, size: 750 },
+        "Cerveza Andes Origen Rubia 473cc"    => { type: "Drink", name: "Cerveza Andes Origen Rubia", kind: :beer, size: 473 },
+        "Quilmes Cristal 970 cc"              => { type: "Drink", name: "Quilmes Cristal", size: 970 },
         "Fernet con Coca $ 3.000"             => { type: "Drink", name: "Fernet con Coca", kind: :mixed },
         "Vino Malbec Trapiche 750ml $ 6.200"  => { type: "Drink", name: "Vino Malbec Trapiche", kind: :wine, size: 750 },
         "Agua sin gas Villavicencio 500 ml"   => { type: "Drink", name: "Agua sin gas Villavicencio", kind: :water, size: 500 },
         "Gaseosa Coca-Cola 1,5 L"             => { type: "Drink", name: "Gaseosa Coca-Cola", kind: :soda, size: 1500 },
         "Bife de chorizo 400g $ 18.500"       => { type: "Food", name: "Bife de chorizo", kind: :meat, size: 400 },
+        "Bife de chorizo 400g con papas fritas" => { type: "Food", name: "Bife de chorizo con papas fritas", kind: :meat, size: 400 },
         "Picada para 2 $ 12.000"              => { type: "Food", name: "Picada para 2", kind: :snack }
       )
     end
@@ -85,7 +93,8 @@ RSpec.describe Openmarket::Line do
         "Jameson Irish Whiskey 1.5 oz $9"        => { type: "Drink", name: "Jameson Irish Whiskey", kind: :whisky, size: 44 },
         "Tito's Handmade Vodka 1L 40% ABV $30"   => { type: "Drink", name: "Tito's Handmade Vodka", kind: :vodka, size: 1000, acl: 40.0 },
         "Classic Cheeseburger 8oz $14"           => { type: "Food", name: "Classic Cheeseburger", kind: :burger, size: 227 },
-        "Ribeye Steak 12 oz $32"                 => { type: "Food", name: "Ribeye Steak", kind: :meat, size: 340 }
+        "Ribeye Steak 12 oz $32"                 => { type: "Food", name: "Ribeye Steak", kind: :meat, size: 340 },
+        "Ribeye 12oz with fries $32"             => { type: "Food", name: "Ribeye with fries", kind: :meat, size: 340 }
       )
     end
 
@@ -131,6 +140,13 @@ RSpec.describe Openmarket::Line do
       it "is none when the unit is not the type's: food is weighed, drinks are measured" do
         expect(parse("Sorvete de creme 1,5 L")).to include(type: "Food", kind: :dessert, size: nil)
         expect(parse("Chocolate quente 300ml")).to include(type: "Drink", kind: nil, size: 300)
+      end
+
+      it "reads cc, as Argentina writes millilitres" do
+        expect(parse("Quilmes 1000cc")).to eq(nothing.merge(type: "Drink", name: "Quilmes", size: 1000))
+        expect(parse("Vino tinto Malbec 750 cc")).to include(name: "Vino tinto Malbec", kind: :wine, size: 750)
+        expect(parse("Cerveza 6 x 473cc")).to include(name: "Cerveza", pack: :kit, size: 473)
+        expect(parse("Agua 500 cm³")).to include(name: "Agua", size: 500)
       end
 
       it "is none without a type to give a bare number its unit" do
@@ -182,6 +198,28 @@ RSpec.describe Openmarket::Line do
         expect(parse("Pudim de café")).to include(type: "Food", kind: :dessert)
       end
 
+      it "takes, between a drink and a dish, the one no small word ties to the other" do
+        expect(parse("Picanha ao molho de vinho")).to include(type: "Food", kind: :meat)
+        expect(parse("Bombom de licor")).to include(type: "Food", kind: :dessert)
+        expect(parse("Café com chocolate")).to include(type: "Drink", kind: nil)
+        expect(parse("Milkshake de chocolate 400ml")).to include(type: "Drink", kind: nil, size: 400)
+        expect(parse("Chocolate Stout")).to include(type: "Drink", kind: :beer) # untied, a drink comes first
+      end
+
+      it "reads a drink a dish was cooked in as that dish" do
+        expect(parse("Pera ao vinho")).to eq(nothing.merge(type: "Food", name: "Pera ao vinho"))
+        expect(parse("Pollo a la cerveza")).to include(type: "Food", kind: nil)
+        expect(parse("Mexilhões ao vinho branco 400g")).to include(type: "Food", kind: nil, size: 400)
+        expect(parse("Cerveja no balde")).to include(type: "Drink", kind: :beer)
+      end
+
+      it "takes a weight to mean food, and never weighs a drink" do
+        expect(parse("Rum cake 500g")).to include(type: "Food", kind: :dessert, size: 500)
+        expect(parse("Bourbon glazed ribs 400g")).to include(type: "Food", kind: :meat, size: 400)
+        expect(parse("Picanha ao molho de vinho 500g")).to include(type: "Food", kind: :meat, size: 500)
+        expect(parse("Cerveja 500g")).to eq(nothing.merge(name: "Cerveja"))
+      end
+
       it "knows a drink none of the kinds fit" do
         expect(parse("Café expresso")).to include(type: "Drink", kind: nil)
         expect(parse("Água de coco 300ml")).to include(type: "Drink", kind: nil, size: 300)
@@ -211,6 +249,21 @@ RSpec.describe Openmarket::Line do
         expect(parse("Coca-Cola garrafa de 2L")[:name]).to eq("Coca-Cola")
         expect(parse("Cerveja Brahma (lata 350ml)")[:name]).to eq("Cerveja Brahma")
         expect(parse("Heineken - LN - Puro Malte 330ml")[:name]).to eq("Heineken - Puro Malte")
+      end
+
+      it "keeps a small word that ties a cut to what follows, unless nothing comes before it" do
+        expect(parse("Água 500ml com gás")[:name]).to eq("Água com gás")
+        expect(parse("Picanha 500g com arroz")[:name]).to eq("Picanha com arroz")
+        expect(parse("Pizza grande R$ 59,90 de calabresa")[:name]).to eq("Pizza grande de calabresa")
+        expect(parse("Chopp 500ml em taça gelada")[:name]).to eq("Chopp em taça gelada")
+        expect(parse("500ml de Coca-Cola")[:name]).to eq("Coca-Cola")
+      end
+
+      it "drops one just before a cut: it went with what was cut" do
+        expect(parse("Cerveja de 600ml gelada")[:name]).to eq("Cerveja gelada")
+        expect(parse("Coca-Cola de 2L com gelo")[:name]).to eq("Coca-Cola com gelo")
+        expect(parse("Garrafa de 600ml de Original")[:name]).to eq("Original")
+        expect(parse("Heineken na garrafa")[:name]).to eq("Heineken")
       end
 
       it "drops a list's bullet or number" do
@@ -287,6 +340,15 @@ RSpec.describe Openmarket::Line do
     it "says which line named nothing, and gives it no kind" do
       expect(found.last).to eq(nothing.merge(line: 12, text: "R$ 10,00", error: "no name"))
       expect(found.first).not_to have_key(:error)
+    end
+
+    it "gives only the type of a heading that names two kinds, and nothing of one that names a drink and a dish" do
+      found = described_class.parse_all("Águas e Refrigerantes:\nCrystal sem gás 500ml\nSucos e Refrigerantes:\nLaranja 300ml\n" \
+                                        "Cervejas e Drinks:\nHeineken LN 330\nPetiscos e Cervejas:\nXyz\n")
+
+      expect(found.map { |line| line.values_at(:name, :type, :kind) }).to eq([
+        [ "Crystal sem gás", "Drink", nil ], [ "Laranja", "Drink", nil ], [ "Heineken", "Drink", nil ], [ "Xyz", nil, nil ]
+      ])
     end
 
     it "reads a bare percent on a line only its heading makes a drink" do
