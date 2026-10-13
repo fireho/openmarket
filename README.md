@@ -287,6 +287,8 @@ Needs mongoid and, for the enums, fire's `Enumere`. Locally: `bundle config set 
 mapper, the dump format and its builder, the importer on fake models, the menu
 reader, the Wikidata client on a made-up answer — with no Rails and no Mongo.
 GitHub Actions runs them on every push and pull request (`.github/workflows/specs.yml`).
+Among them `spec/lib/words_spec.rb`: the product screens name a locale key,
+never a word, and every key is there in en and pt alike.
 
 The model, request and routing specs boot `spec/dummy`, the smallest host the
 engine runs in, on a real Mongo:

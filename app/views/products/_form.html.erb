@@ -8,40 +8,40 @@
       <%= form.hidden_field :type %>
     <% else %>
       <div class="form-control">
-        <%= form.label(:type, "Tipo") %>
+        <%= form.label(:type, t("openmarket.products.type")) %>
         <div class="flex space-x-4 mt-2">
           <%= form.radio_button :type, "Drink" %>
-          <%= form.label :type_drink, "Bebida", { class: "ml-2 mr-4" } %>
+          <%= form.label :type_drink, Drink.model_name.human, { class: "ml-2 mr-4" } %>
           <%= form.radio_button :type, "Food" %>
-          <%= form.label :type_food, "Comida", { class: "ml-2" } %>
+          <%= form.label :type_food, Food.model_name.human, { class: "ml-2" } %>
         </div>
       </div>
     <% end %>
     <div class="form-control">
-      <%= form.label(:name, "Nome") %>
+      <%= form.label(:name) %>
       <%= form.text_field(:name) %>
     </div>
     <div class="form-control">
-      <%= form.label(:code, "Código") %>
+      <%= form.label(:code) %>
       <%= form.text_field(:code) %>
     </div>
     <% if @product.drink? %>
       <div class="form-control">
-        <%= form.label(:kind, "Tipo de Bebida") %>
-        <%= form.select(:kind, Drink.kinds_select, { include_blank: "Selecione..." }, { class: "form-select" }) %>
+        <%= form.label(:kind, t("openmarket.products.drink_kind")) %>
+        <%= form.select(:kind, Drink.kinds_select, { include_blank: t("openmarket.products.choose") }, { class: "form-select" }) %>
       </div>
       <div class="flex space-x-4 my-5">
         <div class="form-control w-1/2">
-          <%= form.label(:pack, "Embalagem") %>
-          <%= form.select(:pack, Drink.packs_select, { include_blank: "Selecione..." }, { class: "form-select" }) %>
+          <%= form.label(:pack, Drink.human_attribute_name(:pack)) %>
+          <%= form.select(:pack, Drink.packs_select, { include_blank: t("openmarket.products.choose") }, { class: "form-select" }) %>
         </div>
         <div class="flex space-x-4 w-1/2">
           <div class="form-control w-1/2">
-            <%= form.label(:size, "Tamanho (ml)") %>
+            <%= form.label(:size, Drink.human_attribute_name(:size)) %>
             <%= form.number_field(:size) %>
           </div>
           <div class="form-control w-1/2">
-            <%= form.label(:acl, "Álcool (%)") %>
+            <%= form.label(:acl, Drink.human_attribute_name(:acl)) %>
             <%= form.number_field(:acl, step: "any") %>
           </div>
         </div>
@@ -49,11 +49,11 @@
     <% elsif @product.food? %>
       <div class="flex space-x-4 my-5">
         <div class="form-control w-1/2">
-          <%= form.label(:kind, "Tipo de Comida") %>
-          <%= form.select(:kind, Food.kinds_select, { include_blank: "Selecione..." }, { class: "form-select" }) %>
+          <%= form.label(:kind, t("openmarket.products.food_kind")) %>
+          <%= form.select(:kind, Food.kinds_select, { include_blank: t("openmarket.products.choose") }, { class: "form-select" }) %>
         </div>
         <div class="form-control w-1/2">
-          <%= form.label(:size, "Tamanho (g)") %>
+          <%= form.label(:size, Food.human_attribute_name(:size)) %>
           <%= form.number_field(:size) %>
         </div>
       </div>
@@ -79,10 +79,10 @@
       <%= tag.img src: @product.image, alt: "", class: "h-24 object-contain" %>
     <% end %>
   </fieldset>
-  <div class="inline"><%= form.submit "Salvar", class: "btn btn-primary" %></div>
+  <div class="inline"><%= form.submit t("openmarket.products.save"), class: "btn btn-primary" %></div>
 <% end %>
 <% if !@product.new_record? %>
-  <%= button_to "Excluir", product_path(@product), method: :delete, class: "btn btn-danger", form: { class: "inline", data: { turbo_confirm: "Tem certeza?" } } %>
+  <%= button_to t("openmarket.products.delete"), product_path(@product), method: :delete, class: "btn btn-danger", form: { class: "inline", data: { turbo_confirm: t("openmarket.products.confirm") } } %>
 <% end %>
 <script>
   // The catalogue has more brands than a page could carry, so the names come

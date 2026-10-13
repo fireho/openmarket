@@ -86,3 +86,28 @@ pt:
           attributes:
             products:
               destroy_restrict_with_error_dependencies_exist: "ainda estão nesta marca: mova-os para outra antes"
+  openmarket:
+    products:
+      type: Tipo
+      drink_kind: Tipo de Bebida
+      food_kind: Tipo de Comida
+      choose: "Selecione..."
+      save: Salvar
+      delete: Excluir
+      confirm: Tem certeza?
+      back: Voltar
+      edit: Editar
+      cancel: Cancelar
+      search: Procurar
+      items: Itens
+      new: Novo produto
+      new_drink: Nova Bebida
+      new_food: Nova Comida
+      edit_title: Editando produto
+      editing: "Editando %{type}: %{name}"
+      show_title: Visualizando produto
+      none: Nenhum produto encontrado...
+      totals: "Total de itens: %{total} (Bebidas: %{drinks}, Comidas: %{foods})"
+      no_brand: Não informada
+      size: Tamanho
+      alcohol: Álcool

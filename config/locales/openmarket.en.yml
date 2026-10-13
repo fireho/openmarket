@@ -86,3 +86,28 @@ en:
           attributes:
             products:
               destroy_restrict_with_error_dependencies_exist: "are still filed under this brand: move them to another one first"
+  openmarket:
+    products:
+      type: Type
+      drink_kind: Drink kind
+      food_kind: Food kind
+      choose: "Choose..."
+      save: Save
+      delete: Delete
+      confirm: Are you sure?
+      back: Back
+      edit: Edit
+      cancel: Cancel
+      search: Search
+      items: Items
+      new: New product
+      new_drink: New drink
+      new_food: New food
+      edit_title: Editing product
+      editing: "Editing %{type}: %{name}"
+      show_title: Viewing product
+      none: No products found...
+      totals: "Total items: %{total} (Drinks: %{drinks}, Foods: %{foods})"
+      no_brand: Not given
+      size: Size
+      alcohol: Alcohol

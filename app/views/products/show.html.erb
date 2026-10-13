@@ -1,4 +1,4 @@
-<% content_for :title, "Visualizando product" %>
+<% content_for :title, t("openmarket.products.show_title") %>
 <div class="w-full">
   <h1 class="font-bold text-4xl">
     <%= icon(@product.drink? ? "drinks" : (@product.food? ? "food" : "products"), size: 42) if respond_to?(:icon) %>
@@ -6,27 +6,27 @@
     <span class="text-lg bg-gray-200 rounded px-3 py-1 ml-3"><%= @product.type_name %></span>
   </h1>
   <div class="flex space-x-2 my-4">
-    <%= link_to "Nova Bebida", new_product_path(type: 'Drink'), class: "btn btn-primary" %>
-    <%= link_to "Nova Comida", new_product_path(type: 'Food'), class: "btn btn-secondary" %>
-    <%= link_to "Editar", edit_product_path(@product), class: "btn btn-outline" %>
+    <%= link_to t("openmarket.products.new_drink"), new_product_path(type: 'Drink'), class: "btn btn-primary" %>
+    <%= link_to t("openmarket.products.new_food"), new_product_path(type: 'Food'), class: "btn btn-secondary" %>
+    <%= link_to t("openmarket.products.edit"), edit_product_path(@product), class: "btn btn-outline" %>
   </div>
   <div id="<%= dom_id @product %>" class="w-full sm:w-auto my-5 space-y-5">
     <% if @product.image.present? %>
       <%= tag.img src: @product.image, alt: @product.name, class: "max-h-64 object-contain" %>
     <% end %>
     <div>
-      <strong class="block font-medium mb-1">Nome:</strong>
+      <strong class="block font-medium mb-1"><%= Product.human_attribute_name(:name) %>:</strong>
       <%= @product.name %>
     </div>
     <% if @product.code.present? %>
       <div>
-        <strong class="block font-medium mb-1">Código:</strong>
+        <strong class="block font-medium mb-1"><%= Product.human_attribute_name(:code) %>:</strong>
         <%= @product.code %>
       </div>
     <% end %>
     <div>
-      <strong class="block font-medium mb-1">Marca:</strong>
-      <%= @product.brand ? link_to(@product.brand.name, @product.brand) : "Não informada" %>
+      <strong class="block font-medium mb-1"><%= Product.human_attribute_name(:brand) %>:</strong>
+      <%= @product.brand ? link_to(@product.brand.name, @product.brand) : t("openmarket.products.no_brand") %>
     </div>
     <% if @product.quantity.present? %>
       <div>
@@ -36,34 +36,34 @@
     <% end %>
     <% if @product.respond_to?(:kind_name) %>
       <div>
-        <strong class="block font-medium mb-1">Tipo:</strong>
+        <strong class="block font-medium mb-1"><%= @product.class.human_attribute_name(:kind) %>:</strong>
         <%= @product.kind_name %>
       </div>
     <% end %>
     <% if @product.respond_to?(:pack_name) %>
       <div>
-        <strong class="block font-medium mb-1">Embalagem:</strong>
+        <strong class="block font-medium mb-1"><%= @product.class.human_attribute_name(:pack) %>:</strong>
         <%= @product.pack_name %>
       </div>
     <% end %>
     <% if @product.drink? %>
       <div class="flex space-x-4">
         <div class="w-1/2">
-          <strong class="block font-medium mb-1">Tamanho:</strong>
+          <strong class="block font-medium mb-1"><%= t("openmarket.products.size") %>:</strong>
           <%= @product.size %>ml
         </div>
         <div class="w-1/2">
-          <strong class="block font-medium mb-1">Álcool:</strong>
+          <strong class="block font-medium mb-1"><%= t("openmarket.products.alcohol") %>:</strong>
           <%= @product.acl %>%
         </div>
       </div>
     <% elsif @product.food? && @product.size %>
       <div>
-        <strong class="block font-medium mb-1">Tamanho:</strong>
+        <strong class="block font-medium mb-1"><%= t("openmarket.products.size") %>:</strong>
         <%= @product.size %>g
       </div>
     <% end %>
   </div>
-  <%= link_to "Voltar", products_path, class: "btn btn-secondary" %>
-  <%= button_to "Excluir", product_path(@product), method: :delete, class: "btn btn-danger", form: { class: "inline", data: { turbo_confirm: "Tem certeza?" } } %>
+  <%= link_to t("openmarket.products.back"), products_path, class: "btn btn-secondary" %>
+  <%= button_to t("openmarket.products.delete"), product_path(@product), method: :delete, class: "btn btn-danger", form: { class: "inline", data: { turbo_confirm: t("openmarket.products.confirm") } } %>
 </div>
