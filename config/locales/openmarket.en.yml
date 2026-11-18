@@ -84,8 +84,15 @@ en:
       models:
         brand:
           attributes:
+            name:
+              taken: "is already a brand: pick it from the list"
             products:
+              other_owner: "are filed under it from another owner: move them first"
               destroy_restrict_with_error_dependencies_exist: "are still filed under this brand: move them to another one first"
+        product:
+          attributes:
+            brand:
+              other_owner: "is not in this product's catalogue"
   openmarket:
     products:
       type: Type

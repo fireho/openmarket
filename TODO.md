@@ -13,7 +13,8 @@
 - [ ] TODO first dump release: run dump.yml once by hand (workflow_dispatch), then it runs monthly from main .github/workflows/dump.yml:9
 - [ ] TODO first CI dump runs `--wikidata` (blocked here): check brands get country, site, logo .github/workflows/dump.yml:1
 - [ ] TODO the 4.5 MB snapshot in git grows the history every refresh: release asset only, or one commit per year db/openmarket.ndjson.gz
-- [ ] TODO name the image license: Open Food Facts pictures are CC BY-SA 3.0 README.md:256
+- [ ] TODO name the image license: Open Food Facts pictures are CC BY-SA 3.0 README.md:304
+- [ ] TODO hosts recreate the brand index (key_1 -> key_1_org_id_1): DROP_INDEXES deploy on vvv and qir app/models/brand.rb:79
 - [ ] TODO sha256 and a JSON Schema for the NDJSON line, published with each release lib/openmarket/dump.rb:1
 
 ## Data
@@ -21,7 +22,7 @@
 - [ ] TODO Open Brewery DB (MIT): breweries as brands, with country and site lib/openmarket/
 - [ ] TODO GS1 prefix to country (xoocode/gs1-prefix-ranges, CC BY 4.0): "registered in", never "made in" lib/openmarket/ean.rb
 - [ ] TODO Open Food Facts daily deltas instead of the 13 GB export every month lib/openmarket/open_food_facts.rb:282
-- [ ] TODO brand merge in the admin: `backfill_keys` hands clashes to a person who has no button app/models/brand.rb:65
+- [ ] TODO brand merge in the admin: `backfill_keys` hands clashes to a person who has no button, and an org's copy of a brand the shared catalogue later took (a restore) merges into the shared one app/models/brand.rb:97
 - [ ] TODO brand owner from Wikidata P749 (Heineken owns Amstel) lib/openmarket/wikidata.rb
 - [ ] TODO bar food: snacks and salty snacks from Open Food Facts as Food lib/openmarket/open_food_facts.rb
 - [ ] TODO a product gone from the source is never retired: `discontinued` on restore lib/openmarket/catalogue.rb
@@ -31,9 +32,9 @@
 
 - [ ] TODO `uses` is counted nowhere: count a pick, rank search by it app/models/product.rb:14
 - [ ] TODO camera scan in the form (BarcodeDetector, zxing fallback) straight to lookup app/views/products/_form.html.erb
-- [ ] TODO menu import: paste a menu, `Product.match` each line, a person confirms app/models/product.rb:166
-- [ ] TODO search a country first: a bar in Brazil sees Brazil's Brahma app/models/product.rb:137
-- [ ] TODO typo tolerance ("heiniken"): search is prefix only app/models/product.rb:137
+- [ ] TODO menu import: paste a menu, `Product.match` each line, a person confirms app/models/product.rb:188
+- [ ] TODO search a country first: a bar in Brazil sees Brazil's Brahma app/models/product.rb:158
+- [ ] TODO typo tolerance ("heiniken"): search is prefix only app/models/product.rb:158
 - [ ] TODO es locale for Latin America config/locales/
 - [ ] TODO lookup as a public API: ETag, Cache-Control, CORS app/controllers/products_controller.rb:16
 - [ ] TODO admin filters: source, kind, country, no image app/views/products/index.html.erb

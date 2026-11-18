@@ -163,7 +163,7 @@ RSpec.describe Product, type: :model do
 
       before do # the look comes before theirs is saved
         looks = 0
-        allow(Brand).to receive(:named).and_wrap_original { |named, name| (looks += 1) == 1 ? nil : named.call(name) }
+        allow(Brand).to receive(:named).and_wrap_original { |named, *args, **opts| (looks += 1) == 1 ? nil : named.call(*args, **opts) }
       end
 
       it "takes theirs when the uniqueness check refuses the second" do
@@ -218,6 +218,40 @@ RSpec.describe Product, type: :model do
     end
   end
 
+  describe "its brand's owner" do
+    let(:org)   { Org.create!(name: "Mercado do Zé") }
+    let(:other) { Org.create!(name: "Outro Mercado") }
+    let(:shared) { Brand.create!(name: "Brahma") }
+    let(:own)    { Brand.create!(name: "Da Casa", org_id: org.id) }
+
+    it "may be the shared catalogue's, for anybody" do
+      expect(Product.new(name: "Brahma", brand: shared)).to be_valid
+      expect(Product.new(name: "Brahma", brand: shared, org_id: org.id)).to be_valid
+    end
+
+    it "may be the product's own org" do
+      expect(Product.new(name: "Batida", brand: own, org_id: org.id)).to be_valid
+    end
+
+    it "is refused for a shared product with an org's brand" do
+      product = Product.new(name: "Batida", brand: own)
+
+      expect(product).not_to be_valid
+      expect(product.errors.details[:brand]).to include(error: :other_owner)
+      expect(product.errors[:brand]).to include(I18n.t("mongoid.errors.models.product.attributes.brand.other_owner"))
+    end
+
+    it "is refused for another org's brand" do
+      expect(Product.new(name: "Batida", brand: own, org_id: other.id)).not_to be_valid
+    end
+
+    it "is refused when a product with an org's brand is moved to the shared catalogue" do
+      product = Product.create!(name: "Batida", brand: own, org_id: org.id)
+
+      expect(product.update(org_id: nil)).to be false
+    end
+  end
+
   describe "code per owner" do
     it "lets an org file its own product under a barcode the shared catalogue has" do
       Product.create!(name: "Brahma", code: "7891991010023")
@@ -228,6 +262,79 @@ RSpec.describe Product, type: :model do
   end
 
   describe "#brand_name=" do
+    let(:org)   { Org.create!(name: "Mercado do Zé") }
+    let(:other) { Org.create!(name: "Outro Mercado") }
+
+    it "makes a new brand the org's own, from an org's product" do
+      product = nil
+      expect { product = Product.new(org_id: org.id, brand_name: "Coca Colla") }.not_to change(Brand.shared, :count)
+
+      expect(product.brand).to have_attributes(name: "Coca Colla", org_id: org.id)
+      expect(Brand.search("coca").to_a).to be_empty
+    end
+
+    it "reads the org however the form orders its fields" do
+      product = Product.new(brand_name: "Coca Colla", org_id: org.id) # as `super.merge(org_id:)` sends it
+
+      expect(product.brand.org_id).to eq(org.id)
+      expect(Brand.shared.count).to eq(0)
+    end
+
+    it "reads the org on an update too" do
+      product = Product.create!(name: "Refri", org_id: org.id)
+      product.update!(brand_name: "Coca Colla", org_id: org.id)
+
+      expect(product.reload.brand.org_id).to eq(org.id)
+    end
+
+    it "reuses the shared brand an org's product names" do
+      brahma = Brand.create!(name: "Brahma")
+
+      expect { Product.new(org_id: org.id, brand_name: "BRAHMA") }.not_to change(Brand, :count)
+      expect(Product.new(org_id: org.id, brand_name: "BRAHMA").brand).to eq(brahma)
+    end
+
+    it "takes the org's own brand before anything else" do
+      own = Brand.create!(name: "Da Casa", org_id: org.id)
+
+      expect(Product.new(org_id: org.id, brand_name: "da casa").brand).to eq(own)
+    end
+
+    it "never takes another org's brand: it makes the org its own" do
+      theirs = Brand.create!(name: "Da Casa", org_id: other.id)
+      brand = Product.new(org_id: org.id, brand_name: "Da Casa").brand
+
+      expect(brand).not_to eq(theirs)
+      expect(brand.org_id).to eq(org.id)
+    end
+
+    it "gives a shared product only a shared brand" do
+      Brand.create!(name: "Da Casa", org_id: org.id)
+      brand = Product.new(brand_name: "Da Casa").brand
+
+      expect(brand.org_id).to be_nil
+      expect(Brand.shared.where(key: "da casa")).to exist
+    end
+
+    it "takes the org's brand a moment-earlier save made, in the same scope" do
+      theirs = Brand.create!(name: "Coca Colla", org_id: org.id)
+      looks = 0
+      allow(Brand).to receive(:named).and_wrap_original { |named, *args, **opts| (looks += 1) == 1 ? nil : named.call(*args, **opts) }
+
+      expect(Product.new(org_id: org.id, brand_name: "Coca Colla").brand).to eq(theirs)
+    end
+
+    it "takes the org's brand when the unique index, not the check, refuses the second save" do
+      theirs = Brand.create!(name: "Coca Colla", org_id: org.id)
+      looks = 0
+      allow(Brand).to receive(:named).and_wrap_original { |named, *args, **opts| (looks += 1) == 1 ? nil : named.call(*args, **opts) }
+      allow(Brand).to receive(:create!).and_wrap_original do |_, attrs|
+        Brand.new(attrs.merge(key: Brand.key_for(attrs[:name]))).save!(validate: false) # past the check, into the index
+      end
+
+      expect(Product.new(org_id: org.id, brand_name: "COCA COLLA").brand).to eq(theirs)
+    end
+
     it "keeps a product on the spelling it has, saved again" do
       legacy = Brand.new(name: "ANTARTICA")
       legacy.collection.insert_one(legacy.as_document.except("key")) # no key: a spelling waiting to be merged
@@ -315,6 +422,28 @@ RSpec.describe Product, type: :model do
 
     it "searches by code" do
       expect(Product.search("123456").count).to eq(1)
+    end
+
+    context "by a brand with an owner" do
+      let(:org)   { Org.create!(name: "Mercado do Zé") }
+      let(:other) { Org.create!(name: "Outro Mercado") }
+      let!(:own)  { Brand.create!(name: "Marca do Zé", org_id: org.id) }
+      let!(:mine) { Product.create!(name: "Arroz", brand: own, org_id: org.id) }
+
+      it "finds an org's product by its own brand, through the org's scope" do
+        expect(Product.for(org).search("marca do").to_a).to eq([ mine ])
+        expect(Product.for(other).search("marca do").to_a).to be_empty
+        expect(Product.shared.search("marca do").to_a).to be_empty
+      end
+
+      it "reads only the brands the scope's owners have" do
+        stray = Product.create!(name: "Feijão", org_id: other.id)
+        stray.set(brand_id: own.id, tokens: [ "feijao" ]) # past the check: another org's brand
+        mine.set(tokens: [ "arroz" ]) # only the brand clause can find it
+
+        expect(Product.for(other).search("marca do").to_a).to be_empty
+        expect(Product.for(org).search("marca do").to_a).to eq([ mine ])
+      end
     end
 
     it "takes the term as text, not a pattern" do

@@ -204,7 +204,7 @@ module Openmarket
     # What Wikidata knows, written on brands that lack it:
     #
     #   filler = Openmarket::Wikidata::Filler.new
-    #   filler.call(Brand.where(wikidata: nil).order_by(name: 1).to_a)
+    #   filler.call(Brand.shared.where(wikidata: nil).order_by(name: 1).to_a)
     #   filler.stats   # => { found: 40, missing: 55, skipped: 5 }
     #   filler.last    # => "Zé Cola", the last brand it got to
     #

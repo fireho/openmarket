@@ -7,8 +7,8 @@ module Openmarket
   #
   #   { code: "7891991010023", brand: "Brahma", type: "Drink", attrs: { name_translations: ... } }
   #
-  # Every row is shared (no org): an import fills the catalogue everybody picks
-  # from. One bad row is counted and set aside, never allowed to stop the rest.
+  # Every row is shared (no org), brands too: an import fills the catalogue
+  # everybody picks from, and never finds or writes an org's own brand. One bad row is counted and set aside, never allowed to stop the rest.
   #
   #   importer = Openmarket::Importer.new
   #   importer.call(Openmarket::OpenFoodFacts.each("off.jsonl.gz", countries: %w[ en:brazil ]))
@@ -72,7 +72,7 @@ module Openmarket
       return if key.empty?
       return @cache[key] if @cache.key?(key) && !update
 
-      found = @brands.named(name)
+      found = @brands.named(name, org: nil) # the shared one, never an org's of that name
       if found
         known = attrs.compact # a record silent on a field leaves the brand's own
         found.update(known) if update && !known.empty?

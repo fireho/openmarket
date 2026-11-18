@@ -36,6 +36,9 @@ class Product
   # One barcode per owner: the shared catalogue has one Brahma, and an org's
   # own Brahma (filed before the catalogue had it) never blocks it.
   validates :code, uniqueness: { scope: :org_id }, allow_blank: true
+  # Its brand is the shared catalogue's or its own org's: a shared product
+  # never points at an org's label, org A's never at org B's.
+  validate :brand_in_catalogue, if: -> { brand_id_changed? || org_id_changed? }
 
   # What a person corrects. An import refreshes rows it wrote (`source`); once
   # someone edits one of these, the row is theirs and imports leave it alone.
@@ -100,7 +103,9 @@ class Product
   def name = super.presence || name_translations&.values&.find(&:present?)
 
   # The brand as a form writes it: a name. Found however it was cased or
-  # accented, made when nobody has it yet; blank (or only invisible characters)
+  # accented — among its org's own brands first, then the shared ones — and
+  # made when nobody has it yet, under the product's org (a shared product
+  # only ever gets a shared brand); blank (or only invisible characters)
   # takes the brand off. A new brand is saved even if the product then is not:
   # it is a real name someone typed, and the next try finds it.
   def brand_name = brand&.name
@@ -112,7 +117,15 @@ class Product
     # types another brand.
     return if brand && Brand.clean(brand.name) == Brand.clean(name)
 
-    self.brand = Brand.key_for(name) && (Brand.named(name) || new_brand(name))
+    self.brand = Brand.key_for(name) && (Brand.named(name, org: org_id) || new_brand(name))
+  end
+
+  # `brand_name=` reads org_id, and an app's form sends org_id last
+  # (`super.merge(org_id:)`): the name is assigned once the rest is.
+  def process_attributes(attrs = nil, &)
+    attrs = sanitize_for_mass_assignment(attrs || {})
+    name = attrs.keys.find { |key| key.to_s == "brand_name" }
+    super(name ? attrs.except(name).merge(name => attrs[name]) : attrs, &)
   end
 
   # The scan: a barcode in any spelling — UPC-A, EAN-13, with spaces — and the
@@ -137,12 +150,18 @@ class Product
   # "Antártica Original"; or the start of a code; or a brand's name. Each
   # clause is a prefix on an index, so it stays fast on a big catalogue.
   # The term is text, not a pattern: "(" is a typo, not a regexp error.
+  # Called on a scope (Product.for(org).search), it reads the brands of the
+  # owners that scope holds, so an org's label finds nobody else's rows. Only
+  # the owned rows are asked who owns them, the shared catalogue is nil by
+  # hand: a distinct over it would read every row of it, per keystroke. In
+  # `$and`, as `where(org_id:)` would replace the scope's own org_id.
   def self.search(term)
     return all unless term.present?
 
     text = term.to_s.strip
     words = Openmarket::Text.tokens(text)
-    brands = Brand.where(key: /\A#{Regexp.escape(Openmarket::Text.fold(text))}/).pluck(:_id)
+    owners = where("$and" => [ { org_id: { "$ne" => nil } } ]).distinct(:org_id) << nil
+    brands = Brand.where(org_id: { "$in" => owners }).starting_with(text).pluck(:_id)
 
     clauses = [ { code: /\A#{Regexp.escape(text.delete(' '))}/ }, { brand_id: { "$in" => brands } } ]
     clauses << { tokens: { "$all" => words.map { |word| /\A#{Regexp.escape(word)}/ } } } if words.any?
@@ -224,8 +243,12 @@ class Product
   # The brand the first one saved is the second one's too. A refusal with no
   # such brand is something else, and is raised.
   def new_brand(name)
-    Brand.create!(name: name)
+    Brand.create!(name: name, org_id: org_id)
   rescue Mongoid::Errors::Validations, Mongo::Error::OperationFailure
-    Brand.named(name) or raise
+    Brand.named(name, org: org_id) or raise
+  end
+
+  def brand_in_catalogue
+    errors.add(:brand, :other_owner) if brand&.org_id && brand.org_id != org_id
   end
 end

@@ -83,7 +83,8 @@ namespace :openmarket do
       # In name order, so a run that stops can go on AFTER the last brand it
       # got to. A brand without a key is a spelling of another, waiting to be
       # merged (named just above): it would not save, so it is not asked about.
-      brands = ::Brand.where(key: { "$ne" => nil }, wikidata: { "$in" => [ nil, "" ] }).order_by(name: 1)
+      # Only the shared catalogue's: an org's own label is nobody's to look up.
+      brands = ::Brand.shared.where(key: { "$ne" => nil }, wikidata: { "$in" => [ nil, "" ] }).order_by(name: 1)
       # ENV comes in the locale's encoding (binary under LANG=C): names are UTF-8.
       after = ENV["AFTER"].to_s.dup.force_encoding(Encoding::UTF_8).scrub.presence
       brands = brands.where(name: { "$gt" => after }) if after

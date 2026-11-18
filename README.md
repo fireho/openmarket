@@ -28,6 +28,22 @@ Product.for(org)   # what that org may offer: shared + its own
 ```
 
 `Product.for(nil)` is the shared catalogue, so a picker can always call it.
+
+A brand has an owner the same way: a market's own label, a local maker, a
+distributor's line belong to that org alone.
+
+    Brand  org_id: nil   the shared catalogue's (Brahma): every org sees it, imports and the dump carry it
+    Brand  org_id: <id>  that org's own ("Marca do Zé"): only it sees it, it never leaves in a dump
+
+```ruby
+Brand.shared · Brand.of(org) · Brand.for(org)   # as Product's
+```
+
+A product points at a shared brand or at one of its own org's: a shared
+product never at an org's brand, org A's never at org B's. A key is unique
+per owner: two orgs may each own "Da Casa", but an org may not file a brand
+the shared catalogue has (it picks that one). A brand changes owner only when
+no other owner's product is filed under it.
 An owner is an id, not an association: the engine names no `Org` class, so
 whatever owns things in your app (an org, a shop, a user) does. An app with an
 `Org` model may add `Product.belongs_to :org` itself.
@@ -42,8 +58,10 @@ Anything else is yours to override:
   what                        override                             ships as
   who may come in             before_action                        whoever ApplicationController lets in
   which products              ProductsController#products          Product.shared
+  which brands                BrandsController#brands              Brand.shared
   a brand's page lists        BrandsController#products            Product.shared
   what a product form writes  ProductsController#product_params    the form's fields, never org_id
+  what a brand form writes    BrandsController#brand_params        the form's fields, never org_id
   a page                      app/views/products/*, brands/*       the engine's
   why a save was refused      app/views/openmarket/_errors         the engine's
 ```
@@ -63,6 +81,19 @@ class Bar::ProductsController < ProductsController
 end
 ```
 
+A brand typed on that form is filed under the product's org: found among the
+org's own brands, then the shared ones, made as the org's own when new. The
+brand admin is the same two methods:
+
+```ruby
+class Bar::BrandsController < BrandsController
+  private
+
+  def brands = action_name.in?(%w[ edit update destroy ]) ? Brand.of(current_org) : Brand.for(current_org)
+  def brand_params = super.merge(org_id: current_org.id)
+end
+```
+
 ```ruby
 resources :products, controller: "bar/products" do
   collection do
@@ -74,9 +105,9 @@ end
 
 The engine's pages link with `products_path` and friends, so one controller
 answers to those names. A scan through `products` finds an org's own before
-the shared one with the same barcode. The specs run this very subclass
-(`spec/dummy/app/controllers/bar_products_controller.rb`), at /bar/products
-beside the engine's own, over JSON. For what needs no
+the shared one with the same barcode. The specs run these very subclasses
+(`spec/dummy/app/controllers/bar_products_controller.rb`, `bar_brands_controller.rb`),
+at /bar/products and /bar/brands beside the engine's own, over JSON. For what needs no
 `super` — a `before_action`, `products` — reopening the engine's controller
 with `class_eval` in a `config.to_prepare` block works too.
 
@@ -131,8 +162,11 @@ barcode (`lookup(code, org:)` gives the org's own first). Over HTTP:
 ## Brands
 
 ```ruby
-Brand.search("antar")          # => Antártica — the start of a name, accents and case aside, in name order
-product.brand_name = "brahma"  # finds Brahma however it is typed, makes it when new; "" takes the brand off
+Brand.search("antar")             # => Antártica — the start of a name, accents and case aside, in name order
+Brand.search("antar", org: org)   # the same over Brand.for(org)
+Brand.named("brahma", org: org)   # the org's own first, then the shared one
+Brand.for(org).starting_with("a") # the prefix and the order, on any scope
+product.brand_name = "brahma"     # finds Brahma however it is typed, makes it when new; "" takes the brand off
 ```
 
 A brand is found by its folded `key`, so "Antártica" and "ANTARTICA " are one
@@ -203,7 +237,8 @@ from.
 
 The import and restore tasks first bring an existing database up to date:
 they unset stored null codes, give old brands their folded `key` (warning
-about two spellings of one name, to merge by hand), drop the old index that
+about two spellings of one name within one owner, or an org's spelling of a
+shared one, to merge by hand), drop the old index that
 made a code unique across orgs, create the indexes, and fill `tokens`.
 
 **Load it** from the published dump — no scraping needed:
@@ -257,7 +292,9 @@ The dump is NDJSON — readable without Mongo:
 
 Records are keyed by code and brand name, never by a Mongo id, and sorted, so a
 dump loads into any database and two dumps diff cleanly. Only shared products
-with a code travel: an org's own products, `sku` and `uses` never leave.
+with a code, and their shared brands, travel: an org's own products and
+brands, `sku` and `uses` never leave. Imports and restores write shared brands
+only.
 
 ### Data and license
 
@@ -301,8 +338,8 @@ engine runs in, on a real Mongo:
 ```
 
 The dummy plays the host's part: an `Org`, pagy, a currency for Money, the
-catalogue routes drawn at its top level, and one override
-(`BarProductsController`, see Your app decides). Until Enumere is published,
+catalogue routes drawn at its top level, and two overrides
+(`BarProductsController`, `BarBrandsController`, see Your app decides). Until Enumere is published,
 `spec/dummy/app/models/concerns/enumere.rb` stands in for it — the part
 openmarket reads, same contract (a String field, members keyed by string). A
 host that has the real one never loads it.

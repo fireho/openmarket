@@ -41,7 +41,7 @@ RSpec.describe "What an app overrides", type: :request do
     it "counts the shelf it lists" do
       get products_url
 
-      expect(response.body).to include("Total de itens: 1")
+      expect(response.body).to include(I18n.t("openmarket.products.totals", total: 1, drinks: 1, foods: 0))
     end
 
     it "offers no Delete for a brand whose products it does not list" do
@@ -56,6 +56,84 @@ RSpec.describe "What an app overrides", type: :request do
       post products_url, params: { product: { type: "Drink", name: "Caipirinha", org_id: other.id.to_s } }
 
       expect(Product.find_by(name: "Caipirinha").org_id).to be_nil
+    end
+
+    it "lists, searches and shows only the shared brands" do
+      own = Brand.create!(name: "Brava do Zé", org_id: ze.id)
+
+      get brands_url(format: :json)
+      expect(response.parsed_body.map { |row| row["name"] }).to eq([ "Brahma" ])
+
+      get search_brands_url(q: "bra", format: :json)
+      expect(response.parsed_body.map { |row| row["name"] }).to eq([ "Brahma" ])
+
+      get brand_url(own, format: :json)
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "edits, updates and destroys no org's brand" do
+      own = Brand.create!(name: "Brava do Zé", org_id: ze.id)
+
+      get edit_brand_url(own)
+      expect(response).to have_http_status(:not_found)
+      patch brand_url(own, format: :json), params: { brand: { name: "Tomada" } }
+      expect(response).to have_http_status(:not_found)
+      delete brand_url(own, format: :json)
+      expect(response).to have_http_status(:not_found)
+      expect(own.reload.name).to eq("Brava do Zé")
+    end
+
+    it "takes no org from a brand form" do
+      post brands_url(format: :json), params: { brand: { name: "Nova", org_id: other.id.to_s } }
+
+      expect(Brand.find_by(name: "Nova").org_id).to be_nil
+    end
+  end
+
+  describe "`brands`" do
+    let!(:own)     { Brand.create!(name: "Brava do Zé", org_id: ze.id) }
+    let!(:foreign) { Brand.create!(name: "Brasa do Outro", org_id: other.id) }
+
+    def names = response.parsed_body.map { |row| row["name"] }
+
+    it "lists and searches the app's own beside the shared ones, never another org's" do
+      get bar_brands_url(format: :json)
+      expect(names).to eq([ "Brahma", "Brava do Zé" ])
+
+      get bar_brands_url(search: "brav", format: :json)
+      expect(names).to eq([ "Brava do Zé" ])
+
+      get search_bar_brands_url(q: "bra", format: :json)
+      expect(names).to eq([ "Brahma", "Brava do Zé" ])
+    end
+
+    it "shows the app's own, and no other org's" do
+      get bar_brand_url(own, format: :json)
+      expect(response.parsed_body["name"]).to eq("Brava do Zé")
+
+      get bar_brand_url(foreign, format: :json)
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "writes only the app's own" do
+      patch bar_brand_url(brand, format: :json), params: { brand: { info: "nossa" } }
+
+      expect(response).to have_http_status(:not_found)
+      expect(brand.reload.info).to be_nil
+    end
+
+    it "files a brand the app's form makes under the app's org" do
+      post bar_brands_url(format: :json), params: { brand: { name: "Marca do Zé", org_id: other.id.to_s } }
+
+      expect(response).to have_http_status(:created)
+      expect(Brand.find_by(name: "Marca do Zé").org_id).to eq(ze.id)
+    end
+
+    it "refuses an org's copy of a shared brand" do
+      post bar_brands_url(format: :json), params: { brand: { name: "BRAHMA" } }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(Brand.of(ze).where(key: "brahma")).not_to exist
     end
   end
 
@@ -98,6 +176,14 @@ RSpec.describe "What an app overrides", type: :request do
 
       expect(response).to have_http_status(:created)
       expect(Product.find_by(name: "Batida de Coco").org_id).to eq(ze.id)
+    end
+
+    it "files a new brand typed on the app's form under the app's org" do
+      post bar_products_url(format: :json), params: { product: { type: "Drink", name: "Batida", brand_name: "Coca Colla" } }
+
+      expect(response).to have_http_status(:created)
+      expect(Product.find_by(name: "Batida").brand).to have_attributes(name: "Coca Colla", org_id: ze.id)
+      expect(Brand.shared.where(key: "coca colla")).not_to exist
     end
   end
 

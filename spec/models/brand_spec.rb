@@ -1,4 +1,5 @@
 require "rails_helper"
+require "tmpdir"
 
 RSpec.describe Brand, type: :model do
   it "is valid with a name alone" do
@@ -7,8 +8,130 @@ RSpec.describe Brand, type: :model do
 
   describe "Validations" do
     it { is_expected.to validate_presence_of(:name) }
-    it { is_expected.to validate_uniqueness_of(:name) }
+    it { is_expected.to validate_uniqueness_of(:name).scoped_to(:org_id) }
+    it { is_expected.to validate_uniqueness_of(:key).scoped_to(:org_id) }
     it { is_expected.not_to validate_presence_of(:info) }
+  end
+
+  describe "indexes" do
+    it "has the key unique per owner, only where there is a key" do
+      index = Brand.index_specifications.find { |spec| spec.key.to_a == [ [ :key, 1 ], [ :org_id, 1 ] ] } # in order: a Hash == ignores it
+
+      expect(index.options).to include(unique: true, partial_filter_expression: { key: { "$type" => "string" } })
+      expect(Brand.index_specifications.map(&:key)).not_to include({ key: 1 })
+    end
+
+    it "is on the database as declared" do
+      unique = Brand.collection.indexes.find { |index| index["key"].to_a == [ [ "key", 1 ], [ "org_id", 1 ] ] }
+
+      expect(unique).to include("unique" => true, "partialFilterExpression" => { "key" => { "$type" => "string" } })
+    end
+
+    it "reads an owner's keys on a plain one" do
+      index = Brand.index_specifications.find { |spec| spec.key.to_a == [ [ :org_id, 1 ], [ :key, 1 ] ] }
+
+      expect(index.options).not_to include(:unique, :partial_filter_expression)
+    end
+  end
+
+  describe "who owns it" do
+    let(:org)   { Org.create!(name: "Mercado do Zé") }
+    let(:other) { Org.create!(name: "Outro Mercado") }
+    let!(:shared) { Brand.create!(name: "Brahma") }
+    let!(:own)    { Brand.create!(name: "Marca do Zé", org_id: org.id) }
+    let!(:theirs) { Brand.create!(name: "Marca do Outro", org_id: other.id) }
+
+    it "is the shared catalogue's with no org" do
+      expect(Brand.shared.to_a).to eq([ shared ])
+    end
+
+    it "is one org's alone, by the org or its id" do
+      expect(Brand.of(org).to_a).to eq([ own ])
+      expect(Brand.of(org.id).to_a).to eq([ own ])
+    end
+
+    it "is shared and its own for an org, never another's" do
+      expect(Brand.for(org).to_a).to contain_exactly(shared, own)
+      expect(Brand.for(org.id).to_a).to contain_exactly(shared, own)
+      expect(Brand.for(nil).to_a).to eq([ shared ])
+    end
+
+    it "lets two orgs each own the same name" do
+      Brand.create!(name: "Da Casa", org_id: org.id)
+
+      expect(Brand.new(name: "DA CASA", org_id: other.id)).to be_valid
+    end
+
+    it "refuses the same name twice in one org" do
+      Brand.create!(name: "Da Casa", org_id: org.id)
+
+      expect(Brand.new(name: "Da Casa", org_id: org.id)).not_to be_valid
+    end
+
+    it "is held by the unique index when the check is skipped" do
+      Brand.create!(name: "Da Casa", org_id: org.id)
+      twin = Brand.new(name: "Da Casa", key: "da casa", org_id: org.id)
+
+      expect { twin.save!(validate: false) }.to raise_error(Mongo::Error::OperationFailure)
+      expect { Brand.new(name: "Da Casa", key: "da casa", org_id: other.id).save!(validate: false) }.not_to raise_error
+    end
+
+    it "may not shadow a shared brand: the org picks that one" do
+      copy = Brand.new(name: "BRAHMA", org_id: org.id)
+
+      expect(copy).not_to be_valid
+      expect(copy.errors.details[:name]).to include(error: :taken)
+      expect(copy.errors[:name]).to include(I18n.t("mongoid.errors.models.brand.attributes.name.taken"))
+    end
+
+    it "lets the shared catalogue take a name an org already owns" do
+      expect(Brand.new(name: "Marca do Zé")).to be_valid
+    end
+
+    it "keeps an org's brand editable once the shared catalogue has its name" do
+      Brand.create!(name: "Marca do Zé")
+
+      expect(own.reload.update(info: "a nossa")).to be true
+    end
+
+    describe "a change of owner" do
+      it "is refused while another owner's product is filed under it" do
+        Drink.create!(name: "Caipirinha", org_id: org.id, brand: own)
+
+        expect(own.update(org_id: other.id)).to be false
+        expect(own.errors.details[:products]).to include(error: :other_owner)
+        expect(own.errors[:products]).to include(I18n.t("mongoid.errors.models.brand.attributes.products.other_owner"))
+        expect(own.reload.org_id).to eq(org.id)
+      end
+
+      it "is refused for a shared brand with no key yet, the shared catalogue's products on it" do
+        legacy = Brand.new(name: "Velha")
+        legacy.collection.insert_one(legacy.as_document.except("key"))
+        Drink.create!(name: "Velha Pinga", brand: legacy)
+
+        expect(Brand.find(legacy.id).update(org_id: org.id)).to be false
+      end
+
+      it "is refused for a shared brand with the shared catalogue's products on it" do
+        Drink.create!(name: "Brahma Chopp", brand: shared)
+
+        expect(shared.update(org_id: org.id)).to be false
+        expect(shared.errors.details[:products]).to include(error: :other_owner)
+      end
+
+      it "goes through when only the new owner's products, or none, are on it" do
+        Drink.create!(name: "Caipirinha", org_id: org.id, brand: own)
+
+        expect(own.update(org_id: nil)).to be true
+        expect(theirs.update(org_id: org.id)).to be true
+      end
+
+      it "takes a shared brand nobody else uses into an org: it shadows nothing but itself" do
+        Drink.create!(name: "Brahma da Casa", org_id: org.id, brand: shared)
+
+        expect(shared.update(org_id: org.id)).to be true
+      end
+    end
   end
 
   describe "#key" do
@@ -50,6 +173,42 @@ RSpec.describe Brand, type: :model do
       expect(Brand.named("Brahma")).to be_nil
       expect(Brand.named("")).to be_nil
     end
+
+    context "with an org" do
+      let(:org)   { Org.create!(name: "Mercado do Zé") }
+      let(:other) { Org.create!(name: "Outro Mercado") }
+      let!(:own)  { Brand.create!(name: "Da Casa", org_id: org.id) }
+
+      it "finds the org's own" do
+        expect(Brand.named("da casa", org: org)).to eq(own)
+        expect(Brand.named("da casa", org: org.id)).to eq(own)
+      end
+
+      it "finds the shared one the org has no copy of" do
+        expect(Brand.named("antartica", org: org)).to eq(brand)
+      end
+
+      it "finds the org's own before the shared one" do
+        legacy = Brand.new(name: "Skol", key: "skol", org_id: org.id)
+        legacy.collection.insert_one(legacy.as_document) # before the shadow check
+        Brand.create!(name: "Skol")
+
+        expect(Brand.named("SKOL", org: org)).to eq(legacy)
+      end
+
+      it "finds the org's own by an alias before a shared key" do
+        own.update!(name: "Da Casa Nova")
+        shared = Brand.new(name: "Da Casa", key: "da casa")
+        shared.collection.insert_one(shared.as_document)
+
+        expect(Brand.named("Da Casa", org: org)).to eq(own)
+      end
+
+      it "never finds another org's, and without an org only the shared" do
+        expect(Brand.named("da casa", org: other)).to be_nil
+        expect(Brand.named("da casa")).to be_nil
+      end
+    end
   end
 
   describe ".search" do
@@ -72,6 +231,71 @@ RSpec.describe Brand, type: :model do
     it "takes the term as text, not a pattern" do
       expect { Brand.search("(").to_a }.not_to raise_error
       expect(Brand.search(".*").to_a).to be_empty
+    end
+
+    context "with an org" do
+      let(:org)   { Org.create!(name: "Mercado do Zé") }
+      let(:other) { Org.create!(name: "Outro Mercado") }
+
+      before do
+        Brand.create!(name: "Bramha Caseira", org_id: org.id)
+        Brand.create!(name: "Brava", org_id: other.id)
+      end
+
+      it "reads the shared catalogue and the org's own, never another org's" do
+        expect(Brand.search("bra", org: org).map(&:name)).to eq([ "Brahma", "Bramha Caseira" ])
+        expect(Brand.search(nil, org: org).count).to eq(4)
+      end
+
+      it "is the shared catalogue without one" do
+        expect(Brand.search("bra").map(&:name)).to eq([ "Brahma" ])
+      end
+    end
+  end
+
+  describe ".starting_with" do
+    it "narrows whatever scope it is called on, never widens it" do
+      org = Org.create!(name: "Mercado do Zé")
+      Brand.create!(name: "Brahma")
+      own = Brand.create!(name: "Bramha Caseira", org_id: org.id)
+
+      expect(Brand.of(org).starting_with("bra").to_a).to eq([ own ])
+      expect(Brand.for(org).starting_with("bra").map(&:name)).to eq([ "Brahma", "Bramha Caseira" ])
+    end
+  end
+
+  describe ".backfill_keys" do
+    def legacy(name, org_id = nil)
+      brand = Brand.new(name: name, org_id: org_id)
+      brand.collection.insert_one(brand.as_document.except("key"))
+      brand
+    end
+
+    it "gives an old brand its key, and hands back a second spelling of one owner's name" do
+      Brand.create!(name: "Antártica")
+      old = legacy("Skol")
+      legacy("ANTARTICA")
+
+      expect(Brand.backfill_keys).to eq([ "ANTARTICA" ])
+      expect(old.reload.key).to eq("skol")
+    end
+
+    it "checks a clash within the brand's own owner" do
+      org = Org.create!(name: "Mercado do Zé")
+      Brand.create!(name: "Da Casa", org_id: org.id)
+      old = legacy("Da Casa")
+
+      expect(Brand.backfill_keys).to eq([])
+      expect(old.reload.key).to eq("da casa")
+    end
+
+    it "hands back an org's spelling of a shared brand: it would shadow it" do
+      org = Org.create!(name: "Mercado do Zé")
+      Brand.create!(name: "Brahma")
+      old = legacy("BRAHMA", org.id)
+
+      expect(Brand.backfill_keys).to eq([ "BRAHMA" ])
+      expect(old.reload.key).to be_nil
     end
   end
 
@@ -117,6 +341,43 @@ RSpec.describe Brand, type: :model do
 
       expect(brand.destroy).to be true
       expect(Brand.where(_id: brand.id)).not_to exist
+    end
+  end
+
+  # What leaves in a dump and what an import writes: the shared catalogue only.
+  describe "the open catalogue" do
+    let(:org) { Org.create!(name: "Mercado do Zé") }
+
+    it "dumps no org's brand, not even one a shared product was forced onto" do
+      shared = Brand.create!(name: "Brahma")
+      own = Brand.create!(name: "Marca do Zé", org_id: org.id)
+      Drink.create!(name: "Brahma Chopp", code: "7891991010023", brand: shared)
+      forced = Drink.create!(name: "Arroz", code: "7891000315507")
+      forced.set(brand_id: own.id) # past the check
+      Drink.create!(name: "Feijão", code: "7891000100103", org_id: org.id, brand: own)
+
+      records = Openmarket::Catalogue.records.to_a
+
+      expect(records.select { |record| record["type"] == "brand" }.map { |record| record["name"] }).to eq([ "Brahma" ])
+      expect(records.map { |record| record["code"] }.compact).to contain_exactly("7891991010023", "7891000315507")
+      expect(records.to_s).not_to include("Marca do Zé")
+    end
+
+    it "restores into shared brands, beside an org's own of the same name" do
+      own = Brand.create!(name: "Brahma", org_id: org.id)
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "dump.ndjson")
+        Openmarket::Dump.write(path, [
+          { "type" => "brand", "name" => "Brahma", "country" => "BR" },
+          { "type" => "drink", "code" => "7891991010023", "name" => { "pt" => "Cerveja Brahma" }, "brand" => "Brahma" }
+        ])
+        Openmarket::Catalogue.restore(path)
+      end
+
+      brand = Product.find_by(code: "7891991010023").brand
+      expect(brand).not_to eq(own)
+      expect(brand).to have_attributes(org_id: nil, country: "BR")
+      expect(own.reload.country).to be_nil
     end
   end
 

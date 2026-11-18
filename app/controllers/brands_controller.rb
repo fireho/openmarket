@@ -3,7 +3,7 @@ class BrandsController < ApplicationController
 
   # GET /brands or /brands.json — ?search= is the start of a name.
   def index
-    @pagy, @brands = pagy(Brand.search(params[:search]), limit: 50)
+    @pagy, @brands = pagy(brands.starting_with(params[:search]), limit: 50)
   end
 
   # GET /brands/1 or /brands/1.json — and the products filed under it.
@@ -13,7 +13,7 @@ class BrandsController < ApplicationController
 
   # GET /brands/search.json?q=amb — what to offer while someone types a brand.
   def search
-    @brands = Brand.search(params[:q]).limit(20)
+    @brands = brands.starting_with(params[:q]).limit(20)
     render :index, formats: :json
   end
 
@@ -69,16 +69,28 @@ class BrandsController < ApplicationController
 
   private
 
+  # What this controller lists, shows, edits and offers while someone types:
+  # the shared catalogue's brands. An app that shows an org its own overrides
+  # this, as ProductsController#products (README § Your app decides):
+  #
+  #   def brands = Brand.for(current_org)   # its own beside the catalogue
+  #
+  # and Brand.of(current_org) for edit, update and destroy: the shared ones
+  # are the catalogue's to write (README has the line).
+  def brands = Brand.shared
+
   # The products a brand's page lists: the shared catalogue, as in
   # ProductsController#products. An app that shows more overrides both.
   def products = Product.shared
 
   def set_brand
-    @brand = Brand.find(params.expect(:id))
+    @brand = brands.find(params.expect(:id))
   end
 
   # Only allow a list of trusted parameters through. `key` and `source` are
   # the catalogue's own: one is made from the name, the other says who wrote it.
+  # No org: filing a brand under one is the app's, which adds it here —
+  # `super.merge(org_id: current_org.id)`.
   def brand_params
     params.expect(brand: [ :name, :info, :wikidata, :country, :site, :logo ])
   end

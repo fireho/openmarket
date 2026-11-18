@@ -3,7 +3,8 @@ require "openmarket/importer"
 
 module Openmarket
   # The shared catalogue to a dump file and back. Only the shared rows travel:
-  # an org's own products (a house recipe) are never in a dump, and a product
+  # an org's own products (a house recipe) and brands (a market's own label)
+  # are never in a dump, and a product
   # with no code has nothing to be known by on the other side, so it stays too.
   module Catalogue
     TYPES = { "drink" => "Drink", "food" => "Food" }.freeze
@@ -34,7 +35,7 @@ module Openmarket
       Enumerator.new do |out|
         products = ::Product.shared.where(code: { "$nin" => [ nil, "" ] })
         ids = products.distinct(:brand_id).compact
-        brands = ::Brand.where(_id: { "$in" => ids }).order_by(name: 1).to_a
+        brands = ::Brand.shared.where(_id: { "$in" => ids }).order_by(name: 1).to_a # never an org's label
 
         brands.each { |brand| out << brand_record(brand) }
         names = brands.to_h { |brand| [ brand.id, brand.name ] }

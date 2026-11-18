@@ -1,4 +1,4 @@
-# For the specs that boot a host: spec/models, spec/requests, spec/routing.
+# For the specs that boot a host: spec/models, spec/requests, spec/routing, spec/tasks.
 # The host is spec/dummy; the database is a real Mongo.
 #
 #   MONGO_TEST_DB=openmarket_<who> bin/rspec spec/models spec/requests spec/routing

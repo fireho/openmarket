@@ -84,8 +84,15 @@ pt:
       models:
         brand:
           attributes:
+            name:
+              taken: "já é uma marca: escolha-a na lista"
             products:
+              other_owner: "de outro dono estão nesta marca: mova-os antes"
               destroy_restrict_with_error_dependencies_exist: "ainda estão nesta marca: mova-os para outra antes"
+        product:
+          attributes:
+            brand:
+              other_owner: "não está no catálogo deste produto"
   openmarket:
     products:
       type: Tipo

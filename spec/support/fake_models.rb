@@ -55,7 +55,9 @@ module Fake
     def self.reset! = @rows = []
 
     # Like Brand.named: by key, then (a brand from before keys) by exact name.
-    def self.named(name)
+    # Every fake brand is shared: an importer asks for no org's.
+    def self.named(name, org: nil)
+      raise ArgumentError, "an import reads the shared catalogue" if org
       key = Openmarket::Text.fold(name)
       rows.find { |brand| brand.key == key } || rows.find { |brand| brand.name == name.to_s.strip }
     end
