@@ -20,14 +20,32 @@ RSpec.describe Product, type: :model do
   end
 
   describe "Indexing" do
-    it "has a unique index on code per owner, over the rows that have one" do
-      index =
-        Product.index_specifications.detect do |idx|
-          idx.key == { code: 1, org_id: 1 }
-        end
-      expect(index).to be_present
-      expect(index.options[:unique]).to be true
-      expect(index.options[:partial_filter_expression]).to eq(code: { "$type" => "string" })
+    # The index names a plan walks.
+    def scans(plan)
+      case plan
+      when Hash then [ plan["indexName"], *plan.values.flat_map { scans(it) } ].compact
+      when Array then plan.flat_map { scans(it) }
+      else []
+      end
+    end
+
+    # In the house shape, `$gt ""`: a code `$in` its spellings implies it, so
+    # the scan reads the code, not an owner's shelf by name. The Brahma sorts
+    # after the shelf, so walking `org_id_1_name_1` costs the whole shelf.
+    it "has a unique index on code per owner, over the rows that have one, that the scan takes" do
+      index = Product.index_specifications.detect { |idx| idx.key == { code: 1, org_id: 1 } }
+      org = Org.create!(name: "Mercado do Zé")
+      20.times { |i| Product.create!(name: "Agua #{i}", code: "HOUSE-#{i}") }
+      5.times { |i| Product.create!(name: "Agua #{i}", code: "HOUSE-#{i}", org_id: org.id) }
+      Product.create!(name: "Cerveja Brahma", code: "7891991010023")
+      plan = ->(scope) { scope.with_code("7891991010023").order_by(org_id: -1).limit(1).explain["queryPlanner"]["winningPlan"] } # Product.lookup's find
+
+      aggregate_failures do
+        expect(index.options[:unique]).to be true
+        expect(index.options[:partial_filter_expression]).to eq(code: { "$gt" => "" })
+        expect(scans(plan.(Product.for(nil)))).to include("code_1_org_id_1").and all(eq("code_1_org_id_1"))
+        expect(scans(plan.(Product.for(org)))).to include("code_1_org_id_1").and all(eq("code_1_org_id_1"))
+      end
     end
   end
 
@@ -422,6 +440,16 @@ RSpec.describe Product, type: :model do
 
     it "searches by code" do
       expect(Product.search("123456").count).to eq(1)
+    end
+
+    # A prefix regex implies no partial filter: the code clause says `$gt ""`
+    # too, so it reads the code index instead of the whole shelf.
+    it "takes the start of a code on the code index" do
+      100.times { |i| Product.create!(name: "Agua #{i}", code: "HOUSE-#{i}") }
+      plan = Product.shared.search("7890").limit(20).explain["queryPlanner"]["winningPlan"].to_json
+
+      expect(plan).to include('"indexName":"code_1_org_id_1"')
+      expect(plan).not_to include("COLLSCAN", "org_id_1_name_1")
     end
 
     context "by a brand with an owner" do

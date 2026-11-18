@@ -63,7 +63,7 @@ RSpec.describe Drink, type: :model do
         end
       expect(index).to be_present
       expect(index.options[:unique]).to be true
-      expect(index.options[:partial_filter_expression]).to eq(code: { "$type" => "string" })
+      expect(index.options[:partial_filter_expression]).to eq(code: { "$gt" => "" })
     end
   end
 

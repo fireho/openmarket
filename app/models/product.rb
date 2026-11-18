@@ -69,8 +69,10 @@ class Product
     org ? any_of({ org_id: nil }, { org_id: org.try(:id) || org }) : shared
   end
 
-  # Only rows with a code are in it — a missing code is not a value to be unique.
-  index({ code: 1, org_id: 1 }, { unique: true, partial_filter_expression: { code: { "$type" => "string" } } })
+  # Only rows with a code are in it — a missing code is not a value to be
+  # unique. `$gt ""` because a code `$in` its spellings implies it, so
+  # `lookup` reads it (a validated save never stores "": blank is no field).
+  index({ code: 1, org_id: 1 }, { unique: true, partial_filter_expression: { code: { "$gt" => "" } } })
   index({ name: 1, brand_id: 1 })
   index({ brand_id: 1 }) # a brand's shelf, and `search` by brand
   index({ org_id: 1, name: 1 }) # an org reading its own shelf
@@ -163,7 +165,9 @@ class Product
     owners = where("$and" => [ { org_id: { "$ne" => nil } } ]).distinct(:org_id) << nil
     brands = Brand.where(org_id: { "$in" => owners }).starting_with(text).pluck(:_id)
 
-    clauses = [ { code: /\A#{Regexp.escape(text.delete(' '))}/ }, { brand_id: { "$in" => brands } } ]
+    # `$gt ""` matches every code the prefix does, and it is what lets the
+    # code index serve it: a regex alone implies no partial filter.
+    clauses = [ { code: { "$gt" => "", "$regex" => /\A#{Regexp.escape(text.delete(' '))}/ } }, { brand_id: { "$in" => brands } } ]
     clauses << { tokens: { "$all" => words.map { |word| /\A#{Regexp.escape(word)}/ } } } if words.any?
     any_of(*clauses)
   end

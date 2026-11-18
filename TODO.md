@@ -14,7 +14,7 @@
 - [ ] TODO first CI dump runs `--wikidata` (blocked here): check brands get country, site, logo .github/workflows/dump.yml:1
 - [ ] TODO the 4.5 MB snapshot in git grows the history every refresh: release asset only, or one commit per year db/openmarket.ndjson.gz
 - [ ] TODO name the image license: Open Food Facts pictures are CC BY-SA 3.0 README.md:304
-- [ ] TODO hosts recreate the brand index (key_1 -> key_1_org_id_1): DROP_INDEXES deploy on vvv and qir app/models/brand.rb:79
+- [ ] TODO hosts recreate two indexes, one DROP_INDEXES deploy on vvv and qir: brands key_1 -> key_1_org_id_1, products code_1_org_id_1 filter $type -> $gt "" app/models/brand.rb:78 app/models/product.rb:75
 - [ ] TODO sha256 and a JSON Schema for the NDJSON line, published with each release lib/openmarket/dump.rb:1
 
 ## Data

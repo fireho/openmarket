@@ -72,11 +72,12 @@ class Brand
   end
 
   # One key per owner, only where there is a key (sparse on a compound index
-  # would still index a brand without one). It holds the rule and serves no
-  # read: Mongo picks a partial index only for a query that says `$type`
-  # itself, and `key: "brahma"` does not. The reads (`named`, `starting_with`,
-  # the uniqueness and shadow checks) take the plain one: an owner's keys.
-  index({ key: 1, org_id: 1 }, { unique: true, partial_filter_expression: { key: { "$type" => "string" } } })
+  # would still index a brand without one). `$gt ""` because an equality on
+  # key implies it, so `named` and the uniqueness and shadow checks may read
+  # it. A validated save never stores "" (`key_for` gives nil for blank).
+  index({ key: 1, org_id: 1 }, { unique: true, partial_filter_expression: { key: { "$gt" => "" } } })
+  # `starting_with`: a prefix regex implies no partial filter, so without
+  # this plain one it scans the collection.
   index({ org_id: 1, key: 1 })
   index({ name: 1 })
   index({ wikidata: 1 }, { sparse: true })

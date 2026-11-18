@@ -14,23 +14,49 @@ RSpec.describe Brand, type: :model do
   end
 
   describe "indexes" do
-    it "has the key unique per owner, only where there is a key" do
-      index = Brand.index_specifications.find { |spec| spec.key.to_a == [ [ :key, 1 ], [ :org_id, 1 ] ] } # in order: a Hash == ignores it
+    # The index names a plan walks, the winner's or every candidate's.
+    def scans(plan)
+      case plan
+      when Hash then [ plan["indexName"], *plan.values.flat_map { scans(it) } ].compact
+      when Array then plan.flat_map { scans(it) }
+      else []
+      end
+    end
 
-      expect(index.options).to include(unique: true, partial_filter_expression: { key: { "$type" => "string" } })
-      expect(Brand.index_specifications.map(&:key)).not_to include({ key: 1 })
+    # In the house shape, `$gt ""`: an equality on key implies it, so the
+    # planner may take the index. `$type` is implied by nothing but itself.
+    it "has the key unique per owner, only where there is a key, and reads a key on it" do
+      index = Brand.index_specifications.find { |spec| spec.key.to_a == [ [ :key, 1 ], [ :org_id, 1 ] ] } # in order: a Hash == ignores it
+      Brand.create!(name: "Brahma")
+      any_owner = Brand.where(key: "brahma").explain["queryPlanner"]
+      shared = Brand.shared.where(key: "brahma").explain["queryPlanner"]
+
+      aggregate_failures do
+        expect(index.options).to include(unique: true, partial_filter_expression: { key: { "$gt" => "" } })
+        expect(Brand.index_specifications.map(&:key)).not_to include({ key: 1 })
+        expect(scans(any_owner["winningPlan"])).to eq([ "key_1_org_id_1" ])
+        # { org_id, key } serves it as well; which of the two wins is the data's: the unique one is a candidate
+        expect(scans([ shared["winningPlan"], shared["rejectedPlans"] ])).to include("key_1_org_id_1")
+      end
     end
 
     it "is on the database as declared" do
       unique = Brand.collection.indexes.find { |index| index["key"].to_a == [ [ "key", 1 ], [ "org_id", 1 ] ] }
 
-      expect(unique).to include("unique" => true, "partialFilterExpression" => { "key" => { "$type" => "string" } })
+      expect(unique).to include("unique" => true, "partialFilterExpression" => { "key" => { "$gt" => "" } })
     end
 
-    it "reads an owner's keys on a plain one" do
+    # A prefix regex implies no partial filter: without the plain one it scans.
+    it "takes a prefix of an owner's keys on a plain one" do
       index = Brand.index_specifications.find { |spec| spec.key.to_a == [ [ :org_id, 1 ], [ :key, 1 ] ] }
+      Brand.create!(name: "Brahma")
+      plan = Brand.for(Org.create!(name: "Mercado do Zé")).starting_with("bra").explain["queryPlanner"]["winningPlan"]
 
-      expect(index.options).not_to include(:unique, :partial_filter_expression)
+      aggregate_failures do
+        expect(index).to be_present
+        expect(index&.options.to_h).not_to include(:unique, :partial_filter_expression)
+        expect(scans(plan)).to include("org_id_1_key_1").and all(eq("org_id_1_key_1"))
+      end
     end
   end
 
